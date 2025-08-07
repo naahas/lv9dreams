@@ -6355,16 +6355,11 @@ body.light-mode .stripe-input::placeholder {
     flex: 1 !important;
 }
 
-/* 6. DEBUG TEMPORAIRE - BORDURES COLORÉES */
+
 .stripe-field {
-    border: 3px solid red !important; /* TEMPORAIRE - pour voir les conteneurs */
+    border: 2px solid rgba(212, 175, 55, 0.3) !important;
 }
 
-.stripe-field iframe {
-    border: 2px solid blue !important; /* TEMPORAIRE - pour voir les iframes */
-}
-
-/* 7. ASSURE-TOI QUE RIEN NE CACHE LES CHAMPS */
 .stripe-payment-form {
     position: relative !important;
     z-index: 1 !important;
