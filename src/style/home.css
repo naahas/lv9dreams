@@ -6277,3 +6277,120 @@ body.light-mode .stripe-input::placeholder {
         max-width: 100%;
     }
 }
+
+
+#stripe-card-number,
+#stripe-card-expiry,
+#stripe-card-cvc {
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: none !important;
+    height: 56px !important;
+    min-height: 56px !important;
+    display: block !important;
+    position: relative !important;
+    overflow: visible !important;
+    box-sizing: border-box !important;
+}
+
+/* 2. FORCE LES DIMENSIONS DES IFRAMES STRIPE */
+#stripe-card-number iframe,
+#stripe-card-expiry iframe,
+#stripe-card-cvc iframe {
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: none !important;
+    height: 56px !important;
+    min-height: 56px !important;
+    max-height: none !important;
+    border: none !important;
+    background: transparent !important;
+    display: block !important;
+    position: relative !important;
+    z-index: 1 !important;
+}
+
+/* 3. OVERRIDE SPÉCIFIQUE POUR .stripe-field */
+.stripe-field {
+    width: 100% !important;
+    min-width: 100% !important;
+    height: 56px !important;
+    min-height: 56px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 2px solid rgba(212, 175, 55, 0.3) !important;
+    border-radius: 12px !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+    position: relative !important;
+    display: flex !important;
+    align-items: center !important;
+    overflow: visible !important;
+    box-sizing: border-box !important;
+}
+
+/* 4. ÉTAT FOCUS */
+.stripe-field:focus-within {
+    border-color: #d4af37 !important;
+    box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.2) !important;
+    background: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* 5. CONTENEUR DES CHAMPS */
+.stripe-fields-container {
+    width: 100% !important;
+}
+
+.stripe-field-group {
+    width: 100% !important;
+    margin-bottom: 1.5rem !important;
+}
+
+.stripe-fields-row {
+    display: flex !important;
+    gap: 1rem !important;
+    width: 100% !important;
+}
+
+.stripe-fields-row .stripe-field-group {
+    flex: 1 !important;
+}
+
+/* 6. DEBUG TEMPORAIRE - BORDURES COLORÉES */
+.stripe-field {
+    border: 3px solid red !important; /* TEMPORAIRE - pour voir les conteneurs */
+}
+
+.stripe-field iframe {
+    border: 2px solid blue !important; /* TEMPORAIRE - pour voir les iframes */
+}
+
+/* 7. ASSURE-TOI QUE RIEN NE CACHE LES CHAMPS */
+.stripe-payment-form {
+    position: relative !important;
+    z-index: 1 !important;
+}
+
+.stripe-payment-form * {
+    position: relative !important;
+}
+
+/* 8. RESPONSIVE */
+@media (max-width: 768px) {
+    .stripe-fields-row {
+        flex-direction: column !important;
+        gap: 1rem !important;
+    }
+    
+    #stripe-card-number,
+    #stripe-card-expiry,
+    #stripe-card-cvc {
+        width: 100% !important;
+        height: 50px !important;
+        min-height: 50px !important;
+    }
+    
+    .stripe-field {
+        height: 50px !important;
+        min-height: 50px !important;
+    }
+}
