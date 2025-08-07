@@ -70,63 +70,63 @@ var app = new Vue({
 
     methods: {
          async initStripe() {
-            try {
-                console.log('💳 Initialisation de Stripe...');
-                
-                // 1. Récupérer la clé publique depuis le serveur
-                const response = await fetch('/api/stripe-config');
-                const config = await response.json();
-                
-                if (!config.success) {
-                    throw new Error('Impossible de récupérer la configuration Stripe');
-                }
-                
-                console.log('✅ Configuration Stripe récupérée');
-                
-                // 2. Initialiser Stripe avec style personnalisé
-                this.stripe = Stripe(config.publishableKey);
-                console.log('✅ Stripe initialisé');
-                
-                // 3. Créer les éléments avec style sombre
-                this.elements = this.stripe.elements({
-                    appearance: {
-                        theme: 'night',
-                        variables: {
-                            colorPrimary: '#d4af37',
-                            colorBackground: 'rgba(255, 255, 255, 0.08)',
-                            colorText: '#ffffff',
-                            colorDanger: '#e74c3c',
-                            fontFamily: 'Inter, system-ui, sans-serif',
-                            spacingUnit: '4px',
-                            borderRadius: '8px',
-                        },
-
-                        rules: {
-                            '.Input': {
-                                height: '56px',
-                                boxSizing: 'border-box',
-                                padding: '1.2rem'
-                            }
-                        }
+    try {
+        console.log('💳 Initialisation de Stripe...');
+        
+        // 1. Récupérer la clé publique depuis le serveur
+        const response = await fetch('/api/stripe-config');
+        const config = await response.json();
+        
+        if (!config.success) {
+            throw new Error('Impossible de récupérer la configuration Stripe');
+        }
+        
+        console.log('✅ Configuration Stripe récupérée');
+        
+        // 2. Initialiser Stripe - ATTENDRE QUE CE SOIT COMPLÈTEMENT CHARGÉ
+        this.stripe = Stripe(config.publishableKey);
+        
+        // ATTENDRE que Stripe soit complètement initialisé
+        await new Promise(resolve => setTimeout(resolve, 500));
+        console.log('✅ Stripe initialisé');
+        
+        // 3. Créer les éléments avec style sombre
+        this.elements = this.stripe.elements({
+            appearance: {
+                theme: 'night',
+                variables: {
+                    colorPrimary: '#d4af37',
+                    colorBackground: 'rgba(255, 255, 255, 0.08)',
+                    colorText: '#ffffff',
+                    colorDanger: '#e74c3c',
+                    fontFamily: 'Inter, system-ui, sans-serif',
+                    spacingUnit: '4px',
+                    borderRadius: '8px',
+                },
+                rules: {
+                    '.Input': {
+                        height: '56px',
+                        boxSizing: 'border-box',
+                        padding: '1.2rem'
                     }
-                });
-                console.log('✅ Elements créé avec thème personnalisé');
-                
-                // 4. Créer les éléments individuels
-                this.createStripeElements();
-                
-                // 5. Attendre le DOM et monter les éléments
-                this.$nextTick(() => {
-                    setTimeout(() => {
-                        this.mountStripeElements();
-                    }, 100);
-                });
-                
-            } catch (error) {
-                console.error('❌ Erreur initStripe:', error);
-                this.orderError = 'Erreur de chargement du système de paiement: ' + error.message;
+                }
             }
-        },
+        });
+        console.log('✅ Elements créé avec thème personnalisé');
+        
+        // 4. Créer les éléments individuels
+        this.createStripeElements();
+        
+        // 5. FORCER le montage après un délai plus long
+        setTimeout(() => {
+            this.mountStripeElements();
+        }, 1000); // Augmenter le délai
+        
+    } catch (error) {
+        console.error('❌ Erreur initStripe:', error);
+        this.orderError = 'Erreur de chargement du système de paiement: ' + error.message;
+    }
+},
 
 
         createStripeElements() {
@@ -164,48 +164,62 @@ var app = new Vue({
 
 
 mountStripeElements() {
-            try {
-                console.log('🔄 Montage des éléments Stripe...');
-                
-                // Vérifier que les conteneurs existent
-                const containers = {
-                    number: document.getElementById('stripe-card-number'),
-                    expiry: document.getElementById('stripe-card-expiry'),
-                    cvc: document.getElementById('stripe-card-cvc')
-                };
-                
-                console.log('Conteneurs trouvés:', {
-                    number: !!containers.number,
-                    expiry: !!containers.expiry,
-                    cvc: !!containers.cvc
-                });
-                
-                if (!containers.number || !containers.expiry || !containers.cvc) {
-                    throw new Error('Conteneurs Stripe non trouvés');
-                }
-                
-                // Monter les éléments
-                this.cardNumberElement.mount('#stripe-card-number');
-                this.cardExpiryElement.mount('#stripe-card-expiry');
-                this.cardCvcElement.mount('#stripe-card-cvc');
-                
-                console.log('✅ Éléments Stripe montés avec succès');
-                
-                // Configurer la gestion d'erreurs
-                this.setupStripeErrorHandling();
-                
-            } catch (error) {
-                console.error('❌ Erreur montage Stripe:', error);
-                this.orderError = 'Erreur lors du montage des champs de carte';
-                
-                // Réessayer après un délai
-                setTimeout(() => {
-                    if (this.orderForm.paymentMethod === 'stripe') {
-                        this.mountStripeElements();
-                    }
-                }, 1000);
+    try {
+        console.log('🔄 Montage des éléments Stripe...');
+        
+        // Vérifier que les conteneurs existent ET sont visibles
+        const containers = {
+            number: document.getElementById('stripe-card-number'),
+            expiry: document.getElementById('stripe-card-expiry'),
+            cvc: document.getElementById('stripe-card-cvc')
+        };
+        
+        // Vérifier la visibilité des conteneurs
+        const stripeForm = document.querySelector('.stripe-payment-form');
+        if (!stripeForm || getComputedStyle(stripeForm).display === 'none') {
+            console.log('⏳ Formulaire Stripe pas visible, réessai...');
+            setTimeout(() => this.mountStripeElements(), 1000);
+            return;
+        }
+        
+        console.log('Conteneurs trouvés:', {
+            number: !!containers.number && containers.number.offsetParent !== null,
+            expiry: !!containers.expiry && containers.expiry.offsetParent !== null,
+            cvc: !!containers.cvc && containers.cvc.offsetParent !== null
+        });
+        
+        if (!containers.number || !containers.expiry || !containers.cvc) {
+            throw new Error('Conteneurs Stripe non trouvés');
+        }
+        
+        // Vider les conteneurs avant de monter
+        containers.number.innerHTML = '';
+        containers.expiry.innerHTML = '';
+        containers.cvc.innerHTML = '';
+        
+        // Monter les éléments
+        this.cardNumberElement.mount('#stripe-card-number');
+        this.cardExpiryElement.mount('#stripe-card-expiry');
+        this.cardCvcElement.mount('#stripe-card-cvc');
+        
+        console.log('✅ Éléments Stripe montés avec succès');
+        
+        // Configurer la gestion d'erreurs
+        this.setupStripeErrorHandling();
+        
+    } catch (error) {
+        console.error('❌ Erreur montage Stripe:', error);
+        this.orderError = 'Erreur lors du montage des champs de carte';
+        
+        // Réessayer après un délai plus long
+        setTimeout(() => {
+            if (this.orderForm.paymentMethod === 'stripe') {
+                console.log('🔄 Nouvelle tentative de montage...');
+                this.mountStripeElements();
             }
-        },
+        }, 2000);
+    }
+},
 
 
          setupStripeErrorHandling() {
@@ -257,21 +271,22 @@ mountStripeElements() {
     this.orderForm.paymentMethod = method;
     
     if (method === 'stripe') {
+        // Attendre que le DOM se mette à jour
         this.$nextTick(() => {
             setTimeout(() => {
                 // Si Stripe n'est pas initialisé, le faire maintenant
                 if (!this.stripe) {
                     console.log('🔄 Initialisation Stripe après sélection...');
                     this.initStripe();
-                } else if (!this.cardNumberElement) {
-                    console.log('🔄 Recréation éléments Stripe...');
+                } else if (!this.cardNumberElement || !this.cardNumberElement._mounted) {
+                    console.log('🔄 Éléments Stripe non montés, remontage...');
                     this.createStripeElements();
-                    setTimeout(() => this.mountStripeElements(), 200);
+                    setTimeout(() => this.mountStripeElements(), 500);
                 } else {
                     console.log('🔄 Remontage éléments Stripe existants...');
                     this.remountStripeElements();
                 }
-            }, 300);
+            }, 500); // Délai plus long
         });
     }
 },
@@ -1054,7 +1069,8 @@ forceStripeInit: function() {
     };
     
     // Démarrer la vérification après un court délai
-    setTimeout(initStripeWhenReady, 1000);
+        setTimeout(initStripeWhenReady, 2000);
+
             
         
 
