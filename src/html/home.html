@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LV9Dreams</title>
+
+    <link rel="stylesheet" href="./home.css">
+
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/particles.js/2.0.0/particles.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+</head>
+<body>
+    <div id="app">
+        <div id="particles-js"></div>
+        <!-- Navigation -->
+        <nav class="navbar">
+            <div class="nav-container">
+                <div class="logo" @click="refreshPage">LV9Dreams</div>
+                <ul class="nav-links">
+                    <li><a href="#accueil">Accueil</a></li>
+                    <li><a href="#produits">Produits</a></li>
+                    <li><a href="#ebook">eBook</a></li>
+                </ul>
+                <!-- NOUVEAU : Icône panier remplace le toggle thème -->
+                <button class="cart-toggle" @click="toggleCart" :class="{ 'clicked': cartClicked }">
+                    <span class="cart-icon">🛒</span>
+                    <div class="cart-badge" :class="{ 'show': cartItemsCount > 0 }">
+                        {{ cartItemsCount }}
+                    </div>
+                </button>
+            </div>
+        </nav>
+
+        <!-- Hero Section -->
+        <section class="hero" id="accueil">
+            <div class="hero-content">
+                <p class="hero-subtitle">Shilajit Pur de l'Himalaya</p>
+                <p class="hero-description">
+                    Découvrez la puissance ancestrale du Shilajit authentique, directement des sommets de l'Himalaya. 
+                    Une source naturelle d'énergie et de vitalité.
+                </p>
+                <div class="cta-buttons">
+                    <a href="#produits" class="btn btn-primary">Découvrir nos produits</a>
+                    <a href="#bienfaits" class="btn btn-secondary">En savoir plus</a>
+                </div>
+            </div>
+            
+            <!-- Floating particles -->
+            <div class="particle" style="top: 20%; left: 10%; width: 4px; height: 4px; animation-delay: 0s;"></div>
+            <div class="particle" style="top: 60%; left: 80%; width: 6px; height: 6px; animation-delay: 2s;"></div>
+            <div class="particle" style="top: 30%; left: 70%; width: 3px; height: 3px; animation-delay: 4s;"></div>
+            <div class="particle" style="top: 80%; left: 20%; width: 5px; height: 5px; animation-delay: 1s;"></div>
+        </section>
+
+        <!-- Nouvelles Grosses Product Boxes -->
+        <div class="big-products left">
+        <!-- SUPPRIMER @click="openProduct('resine')" d'ici -->
+            <div class="big-product-box">
+                <div class="big-product-image">
+                    <img src="shilajit.jpg" alt="Shilajit Résine Pur">
+                </div>
+                <div class="big-product-info">
+                    <h3>Shilajit Résine Pur</h3>
+                    <p class="big-product-description">
+                        Résine pure et authentique récoltée en haute altitude. Format traditionnel.
+                    </p>
+                    <div class="big-product-price">
+                        <span class="current-price">19,99€</span>
+                        <span class="old-price">
+                            29,99€
+                            <span class="discount-badge">-33%</span>
+                        </span>
+                    </div>
+                    <!-- GARDER seulement le bouton sans @click.stop -->
+                    <button class="big-product-btn" @click="addToCartWithNotification('resine')">
+                        🛒 Ajouter au panier
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="big-products right">
+        <!-- SUPPRIMER @click="openProduct('gelules')" d'ici -->
+            <div class="big-product-box">
+                <div class="big-product-image">
+                    <img src="shilajit.jpg" alt="Shilajit Gélules Pur">
+                </div>
+                <div class="big-product-info">
+                    <h3>Shilajit Gélules Pur</h3>
+                    <p class="big-product-description">
+                        Gélules pratiques et dosées avec précision. Format moderne.
+                    </p>
+                    <div class="big-product-price">
+                        <span class="current-price">16,99€</span>
+                        <span class="old-price">
+                            25,99€
+                            <span class="discount-badge">-35%</span>
+                        </span>
+                    </div>
+                    <button class="big-product-btn" @click="addToCartWithNotification('gelules')">
+                        🛒 Ajouter au panier
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Features Section -->
+        <section class="features" id="bienfaits">
+            <h2>Pourquoi choisir notre Shilajit ?</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🏔️</div>
+                    <h3>100% Authentique</h3>
+                    <p>Récolté directement dans les hautes altitudes de l'Himalaya, notre Shilajit conserve toute sa pureté naturelle.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">⚡</div>
+                    <h3>Énergie Naturelle</h3>
+                    <p>Boost naturel d'énergie et de vitalité sans les effets secondaires des stimulants artificiels.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🧪</div>
+                    <h3>Testé en Laboratoire</h3>
+                    <p>Chaque lot est rigoureusement testé pour garantir la pureté et l'absence de contaminants.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section Produits Détaillée -->
+        <section class="product-showcase" id="produits">
+            <div class="showcase-header">
+                <h2>Nos Produits Shilajit</h2>
+                <p>Découvrez notre gamme complète de Shilajit pur, disponible sous différentes formes.</p>
+            </div>
+            
+            <div class="products-grid-compact">
+                <div class="product-detail-card-compact">
+                    <div class="product-detail-image-compact">
+                        <img src="shilajit.jpg" alt="Shilajit Résine Pur">
+                    </div>
+                    <div class="product-detail-content-compact">
+                        <h3>Shilajit Résine Pur</h3>
+                        <div class="product-detail-price-compact">
+                            <span class="current-price">19,99€</span>
+                            <span class="old-price">
+                                29,99€
+                                <span class="discount-badge">-33%</span>
+                            </span>
+                        </div>
+                                                
+                        <div class="product-features-compact">
+                            <h4>Caractéristiques :</h4>
+                            <ul>
+                                <li>✓ Résine pure à 100%</li>
+                                <li>✓ Plus de 85 minéraux essentiels</li>
+                                <li>✓ Récolte en haute altitude (3000m+)</li>
+                                <li>✓ Pot de 30g (60 portions)</li>
+                            </ul>
+                        </div>
+
+                        <div class="product-benefits-compact">
+                            <h4>Bénéfices :</h4>
+                            <p>Augmente l'énergie naturelle, améliore la concentration et soutient le système immunitaire.</p>
+                        </div>
+
+                        <button class="btn btn-primary compact-btn" @click="addToCartWithNotification('resine')">
+                            Ajouter au panier
+                        </button>
+                    </div>
+                </div>
+
+                <div class="product-detail-card-compact">
+                    <div class="product-detail-image-compact">
+                        <img src="shilajit.jpg" alt="Shilajit Gélules Pur">
+                    </div>
+                    <div class="product-detail-content-compact">
+                        <h3>Shilajit Gélules Pur</h3>
+                        <div class="product-detail-price-compact">
+                            <span class="current-price">16,99€</span>
+                            <span class="old-price">
+                                25,99€
+                                <span class="discount-badge">-35%</span>
+                            </span>
+                        </div>
+
+                        <div class="product-features-compact">
+                            <h4>Caractéristiques :</h4>
+                            <ul>
+                                <li>✓ Shilajit standardisé en gélules</li>
+                                <li>✓ 500mg par gélule</li>
+                                <li>✓ Gélules végétales sans additifs</li>
+                                <li>✓ Flacon de 60 gélules (2 mois)</li>
+                            </ul>
+                        </div>
+
+                        <div class="product-benefits-compact">
+                            <h4>Bénéfices :</h4>
+                            <p>Même efficacité que la résine avec la praticité moderne. Idéal pour un mode de vie actif.</p>
+                        </div>
+                        
+                        <button class="btn btn-primary compact-btn" @click="addToCartWithNotification('gelules')">
+                            Ajouter au panier
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="ebook" class="ebook-section">
+            <div class="ebook-container">
+                <div class="ebook-content">
+                    <h2>LV9 Code </h2>
+                    <div class="ebook-price">14,99€</div>
+                    <p class="ebook-excerpt">
+                        "Découvrez les secrets millénaires de l'optimisation personnelle et de la réussite. 
+                        Un guide pratique qui transformera votre approche du succès et du bien-être."
+                    </p>
+                    
+                    <!-- NOUVEAU : Remplace la description par l'extrait avec scroll limité -->
+                    <div class="ebook-preview">
+                        <div class="chapter-title">Extrait - L'enfant qui a grandi trop tôt</div>
+                        <div class="preview-container" id="previewContainer">
+                            <div class="preview-text" id="previewText">
+                                Tu peux être millionnaire, rouler en Lamborghini, vivre dans une villa au bord de l'eau… et pourtant être vide à l'intérieur. Si t'as plus de loyauté, si tu trahis ta femme, si tu n'as aucun respect pour ta famille, si t'es égoïste au point d'oublier ceux qui t'aiment… Franchement, t'as raté ta mission. Et c'est pas ton compte bancaire qui va t'apporter la paix.
+                                <br><br>
+                                J'ai pas eu l'innocence classique. À 10 ans, j'étais déjà en train de lire dans les gens. Déjà en train d'analyser des émotions, des silences, des comportements d'adultes. J'étais trop conscient, trop lucide. J'ai vite compris que personne n'allait me sauver, personne n'allait tout m'expliquer, personne n'allait vraiment m'aider à être prêt. Donc j'ai appris. Seul. En regardant. En observant. En imitant. En me trompant.
+                                <br><br>
+                                Cette précocité, cette capacité à voir au-delà des apparences, ça m'a servi plus tard. Mais sur le moment, c'était lourd à porter. 
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button class="btn btn-primary ebook-specific-btn" @click.stop.prevent="addEbookToCart">
+                        Ajouter au panier
+                    </button>
+
+                </div>
+                <div class="ebook-image">
+                    <div class="ebook-3d">
+                        <div class="ebook-cover">
+                            <!-- <div class="ebook-title">LV9Code</div> -->
+                            <!-- <div class="ebook-subtitle">Guide Ultime<br>du Succès</div> -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="footer" id="contact">
+            <div class="footer-content">
+                <div class="footer-links">
+                    <a href="./mentions.html">Mentions légales</a>
+                    <a href="./confidentialite.html">Politique de confidentialité</a>
+                    <a href="./cgv.html">CGV</a>
+                    <a href="./contact.html">Contact</a>
+                    <a href="./faq.html">FAQ</a>
+                </div>
+                <div class="footer-bottom">
+                    <p>&copy; 2025 LV9Dreams. Tous droits réservés.</p>
+                </div>
+            </div>
+        </footer>
+
+        <button class="theme-toggle" @click="toggleTheme">
+            <span class="theme-icon">🌙</span>
+        </button>
+
+
+        <div class="cart-overlay" :class="{ 'show': isCartOpen }" @click="closeCart"></div>
+
+        <!-- Sidebar panier -->
+        <div class="cart-sidebar" :class="{ 'show': isCartOpen }">
+            <!-- Header -->
+            <div class="cart-header">
+                <div class="cart-title">
+                    🛒 Votre panier
+                </div>
+                <div class="cart-subtitle">{{ cartItemsCount }} article{{ cartItemsCount > 1 ? 's' : '' }}</div>
+                <button class="cart-close" @click="closeCart">×</button>
+            </div>
+
+            <!-- Contenu -->
+            <div class="cart-content">
+                <!-- Panier vide -->
+                <div v-if="cartItems.length === 0" class="cart-empty">
+                    <div class="cart-empty-icon">🛒</div>
+                    <div class="cart-empty-text">Votre panier est vide</div>
+                    <div class="cart-empty-subtitle">Ajoutez des produits pour commencer !</div>
+                </div>
+
+                <!-- Items du panier -->
+                <div v-if="cartItems.length > 0" class="cart-items">
+                    <div v-for="item in cartItems" :key="item.type" class="cart-item">
+                        <div class="cart-item-content">
+                            <div class="cart-item-image">
+                                <img :src="item.image" :alt="item.name">
+                            </div>
+                            <div class="cart-item-info">
+                                <div class="cart-item-name">{{ item.name }}</div>
+                                <div class="cart-item-price">{{ item.price }}€</div>
+                                <div class="cart-item-controls">
+                                    <button class="quantity-btn" @click="decreaseItemQuantity(item.type)" :disabled="item.quantity <= 1">-</button>
+                                    <span class="cart-item-quantity">{{ item.quantity }}</span>
+                                    <button class="quantity-btn" @click="increaseItemQuantity(item.type)">+</button>
+                                    <button class="remove-item" @click="removeFromCart(item.type)">🗑️</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div v-if="cartItems.length > 0" class="cart-footer">
+                <div class="cart-total">
+                    <span class="cart-total-label">Total</span>
+                    <span class="cart-total-amount">{{ getCartTotal() }}€</span>
+                </div>
+                <div class="cart-actions">
+                    <button class="cart-checkout-btn" @click="goToCheckout">
+                        🚀 Finaliser la commande
+                    </button>
+                    <button class="cart-clear-btn" @click="clearCart">
+                        Vider le panier
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="./app.js"></script>
+</body>
+</html>

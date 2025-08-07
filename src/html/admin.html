@@ -1,0 +1,188 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Admin - LV9Dreams</title>
+    <link rel="stylesheet" href="./home.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/particles.js/2.0.0/particles.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+</head>
+<body>
+    <div id="app">
+        <div id="particles-js"></div>
+        
+        <!-- Loading Screen -->
+        <div id="admin-loading" class="admin-loading">
+            <div class="loading-content">
+                <div class="loading-logo">LV9Dreams</div>
+                <div class="loading-text">Vérification des accès...</div>
+                <div class="loading-spinner"></div>
+            </div>
+        </div>
+
+        <!-- Admin Dashboard (caché au début) -->
+        <div id="admin-dashboard" style="display: none;">
+            
+            <!-- Navigation Admin -->
+            <nav class="navbar admin-nav">
+                <div class="nav-container">
+                    <div class="logo admin-logo">
+                        <span class="admin-shield">🛡️</span>
+                        LV9Dreams Admin
+                    </div>
+                    <div class="admin-nav-right">
+                        <!-- <span class="admin-welcome">Bienvenue Administrateur</span> -->
+                        <button class="btn-logout" @click="logout">🚪 Déconnexion</button>
+                    </div>
+                </div>
+            </nav>
+
+            <!-- Dashboard Content -->
+            <div class="admin-content">
+                
+                <!-- Stats Cards -->
+                <div class="admin-stats">
+                    <div class="stat-card revenue">
+                        <div class="stat-icon">💰</div>
+                        <div class="stat-info">
+                            <div class="stat-title">CA Aujourd'hui</div>
+                            <div class="stat-value">{{ stats.todayRevenue }}€</div>
+                            <div class="stat-change positive" v-if="stats.revenueChange >= 0">
+                                +{{ stats.revenueChange }}% vs hier
+                            </div>
+                            <div class="stat-change negative" v-else>
+                                {{ stats.revenueChange }}% vs hier
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card orders">
+                        <div class="stat-icon">📦</div>
+                        <div class="stat-info">
+                            <div class="stat-title">Commandes Aujourd'hui</div>
+                            <div class="stat-value">{{ stats.todayOrders }}</div>
+                            <div class="stat-subtitle">{{ stats.totalOrders }} au total</div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card products">
+                        <div class="stat-icon">🔥</div>
+                        <div class="stat-info">
+                            <div class="stat-title">Produit Top</div>
+                            <div class="stat-value">{{ stats.topProduct.name }}</div>
+                            <div class="stat-subtitle">{{ stats.topProduct.count }} vendues</div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card conversion">
+                        <div class="stat-icon">📈</div>
+                        <div class="stat-info">
+                            <div class="stat-title">Panier Moyen</div>
+                            <div class="stat-value">{{ stats.averageCart }}€</div>
+                            <div class="stat-subtitle">{{ stats.conversionRate }}% conversion</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Section -->
+                <div class="admin-charts">
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3>📊 Ventes des 7 derniers jours</h3>
+                            <div class="chart-period">
+                                <button class="period-btn active" @click="changePeriod('7d')">7j</button>
+                                <button class="period-btn" @click="changePeriod('30d')">30j</button>
+                                <button class="period-btn" @click="changePeriod('90d')">90j</button>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="salesChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3>🍰 Répartition par produit</h3>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="productsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Orders -->
+                <div class="admin-orders">
+                    <div class="orders-header">
+                        <h3>📋 Dernières commandes</h3>
+                        <button class="btn btn-secondary" @click="exportOrders">📥 Exporter CSV</button>
+                    </div>
+                    
+                    <div class="orders-table">
+                        <div class="order-row header">
+                            <div class="order-id">ID</div>
+                            <div class="order-customer">Client</div>
+                            <div class="order-products">Produits</div>
+                            <div class="order-total">Total</div>
+                            <div class="order-status">Statut</div>
+                            <div class="order-date">Date</div>
+                        </div>
+                        
+                        <div v-for="order in recentOrders" :key="order.id" class="order-row">
+                            <div class="order-id">#{{ order.id }}</div>
+                            <div class="order-customer">
+                                <div class="customer-name">{{ order.customer.name }}</div>
+                                <div class="customer-email">{{ order.customer.email }}</div>
+                            </div>
+                            <div class="order-products">
+                                <div v-for="product in order.products" :key="product.type" class="product-item">
+                                    {{ product.name }} x{{ product.quantity }}
+                                </div>
+                            </div>
+                            <div class="order-total">{{ order.total }}€</div>
+                            <div class="order-status">
+                                <span class="status-badge" :class="order.status">{{ getStatusText(order.status) }}</span>
+                            </div>
+                            <div class="order-date">{{ formatDate(order.date) }}</div>
+                        </div>
+                    </div>
+
+                    <!-- Pagination -->
+                    <div class="orders-pagination" v-if="totalPages > 1">
+                        <button class="page-btn" @click="previousPage" :disabled="currentPage === 1">←</button>
+                        <span class="page-info">{{ currentPage }} / {{ totalPages }}</span>
+                        <button class="page-btn" @click="nextPage" :disabled="currentPage === totalPages">→</button>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="admin-actions">
+                    <h3>⚡ Actions rapides</h3>
+                    <div class="action-buttons">
+                        <button class="action-btn" @click="refreshData">🔄 Actualiser</button>
+                        <button class="action-btn" @click="downloadBackup">💾 Backup données</button>
+                        <button class="action-btn" @click="viewCustomers">👥 Liste clients</button>
+                        <button class="action-btn" @click="goToSite">🌐 Voir le site</button>
+                        
+                        <!-- NOUVEAUX BOUTONS avec classes correctes -->
+                        <button class="action-btn action-btn-warning" @click="clearTestOrders">🧹 Nettoyer tests</button>
+                        <button class="action-btn action-btn-danger" @click="clearAllOrders">🗑️ Vider commandes</button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Theme Toggle -->
+        <button class="theme-toggle" @click="toggleTheme">
+            <span class="theme-icon">🌙</span>
+        </button>
+    </div>
+
+    <script src="./admin.js"></script>
+</body>
+</html>

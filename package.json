@@ -1,0 +1,27 @@
+{
+  "name": "lv9project",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "nodemon server.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.53.0",
+    "better-sqlite3": "^12.2.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0",
+    "express-session": "^1.18.2",
+    "nodemailer": "^7.0.5",
+    "nodemon": "^3.1.10",
+    "postgres": "^3.4.7",
+    "socket.io": "^4.8.1",
+    "sqlite3": "^5.1.7",
+    "stripe": "^18.4.0",
+    "underscore": "^1.13.7"
+  }
+}

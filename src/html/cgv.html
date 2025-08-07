@@ -1,0 +1,335 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conditions Générales de Vente - LV9Dreams</title>
+
+    <link rel="stylesheet" href="./home.css">
+
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/particles.js/2.0.0/particles.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+</head>
+<body>
+    <div id="app">
+        <div id="particles-js"></div>
+        
+        <!-- Navigation -->
+        <nav class="navbar">
+            <div class="nav-container">
+                <div class="logo" @click="refreshPage">LV9Dreams</div>
+                <ul class="nav-links">
+                    <li @click = "goHome()"><a href="#accueil">Accueil</a></li>
+                    <li><a href="#produits">Produits</a></li>
+                    <li><a href="#ebook">eBook</a></li>
+                </ul>
+                <!-- NOUVEAU : Icône panier remplace le toggle thème -->
+                <button class="cart-toggle" @click="toggleCart" :class="{ 'clicked': cartClicked }">
+                    <span class="cart-icon">🛒</span>
+                    <div class="cart-badge" :class="{ 'show': cartItemsCount > 0 }">
+                        {{ cartItemsCount }}
+                    </div>
+                </button>
+            </div>
+        </nav>
+
+        <!-- Hero Section -->
+        <section class="hero">
+            <div class="hero-content">
+                <h1>Conditions Générales de Vente</h1>
+                <p class="hero-subtitle">Modalités et conditions de nos services</p>
+                <!-- <div class="scroll-arrow">
+                    <svg class="arrow-svg" width="60" height="40" viewBox="0 0 60 40" xmlns="http://www.w3.org/2000/svg">
+                        <g class="arrow-group" transform="translate(0, -5)">
+                            <path d="M15 8 L30 18 L45 8" stroke="#d4af37" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M12 6 L30 20 L48 6" stroke="#d4af37" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
+                            <path d="M18 10 L30 16 L42 10" stroke="#d4af37" stroke-width="1" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"/>
+                        </g>
+                        
+                        <g class="arrow-group" transform="translate(0, 8)">
+                            <path d="M15 8 L30 18 L45 8" stroke="#d4af37" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M12 6 L30 20 L48 6" stroke="#d4af37" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
+                            <path d="M18 10 L30 16 L42 10" stroke="#d4af37" stroke-width="1" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"/>
+                        </g>
+                    </svg>
+                </div> -->
+            </div>
+            
+            <!-- Floating particles -->
+            <div class="particle" style="top: 20%; left: 10%; width: 4px; height: 4px; animation-delay: 0s;"></div>
+            <div class="particle" style="top: 60%; left: 80%; width: 6px; height: 6px; animation-delay: 2s;"></div>
+            <div class="particle" style="top: 30%; left: 70%; width: 3px; height: 3px; animation-delay: 4s;"></div>
+            <div class="particle" style="top: 80%; left: 20%; width: 5px; height: 5px; animation-delay: 1s;"></div>
+        </section>
+
+        <!-- Legal Content Section -->
+        <section class="legal-content">
+            <div class="legal-container">
+                
+                <div class="legal-section">
+                    <h2>1. Champ d'application</h2>
+                    <div class="legal-card">
+                        <h3>Objet des CGV</h3>
+                        <p>Les présentes Conditions Générales de Vente (CGV) régissent les relations contractuelles entre :</p>
+                        <ul>
+                            <li><strong>Le vendeur :</strong> LV9Dreams </li>
+                            <li><strong>L'acheteur :</strong> Toute personne physique ou morale passant commande</li>
+                        </ul>
+                        <p>Ces CGV s'appliquent à toutes les ventes de produits Shilajit et compléments alimentaires effectuées sur le site <strong>lv9dreams.com</strong></p>
+                        <p><strong>Acceptation :</strong> Toute commande implique l'acceptation pleine et entière de ces CGV.</p>
+                    </div>
+                </div>
+
+                <div class="legal-section">
+                    <h2>2. Produits et services</h2>
+                    <div class="legal-card">
+                        <h3>Gamme de produits</h3>
+                        <p>LV9Dreams commercialise exclusivement :</p>
+                        <ul>
+                            <li><strong>Shilajit premium :</strong> Résine authentique de l'Himalaya</li>
+                            <li><strong>Shilajit gummies :</strong> Compléments alimentaires sous forme de bonbons</li>
+                            <li><strong>Shilajit gélules :</strong> Format pratique pour usage quotidien</li>
+                            <li><strong>Accessoires :</strong> Cuillères doseuses et guides d'utilisation</li>
+                            <li><strong>Ebooks :</strong> Guides de bien-être et d'optimisation personnelle</li>
+                        </ul>
+                        <p><strong>Important :</strong> Nos produits sont des compléments alimentaires et ne remplacent pas une alimentation variée et équilibrée.</p>
+                    </div>
+                </div>
+
+                <div class="legal-section">
+                    <h2>3. Commande et formation du contrat</h2>
+                    <div class="legal-card">
+                        <h3>Processus de commande</h3>
+                        <p>La commande se déroule en plusieurs étapes :</p>
+                        <ul>
+                            <li><strong>Sélection :</strong> Choix des produits et ajout au panier</li>
+                            <li><strong>Identification :</strong> Renseignement des coordonnées</li>
+                            <li><strong>Validation :</strong> Vérification et acceptation des CGV</li>
+                            <li><strong>Paiement :</strong> Règlement sécurisé en ligne</li>
+                            <li><strong>Confirmation :</strong> Email de confirmation automatique</li>
+                        </ul>
+                        <p><strong>Formation du contrat :</strong> Le contrat est formé lors de la validation du paiement par notre prestataire.</p>
+                    </div>
+                </div>
+
+                <div class="legal-section">
+                    <h2>4. Prix et modalités de paiement</h2>
+                    <div class="legal-card">
+                        <h3>Tarification</h3>
+                        <p>Les prix sont indiqués en euros (€) toutes taxes comprises (TTC), hors frais de livraison.</p>
+                        <ul>
+                            <li><strong>Prix fermes :</strong> Les prix ne sont pas révisables pendant la durée de validité de l'offre</li>
+                            <li><strong>Frais de port :</strong> Calculés selon le poids et la destination</li>
+                            <li><strong>Promotions :</strong> Offres valables dans la limite des stocks disponibles</li>
+                        </ul>
+                        
+                        <h3>Moyens de paiement acceptés</h3>
+                        <ul>
+                            <li><strong>Cartes bancaires :</strong> Visa, Mastercard, American Express</li>
+                            <li><strong>PayPal :</strong> Paiement sécurisé via compte PayPal</li>
+                            <li><strong>Virement bancaire :</strong> Pour les commandes professionnelles</li>
+                        </ul>
+                        <p><strong>Sécurité :</strong> Tous les paiements sont sécurisés par chiffrement SSL.</p>
+                    </div>
+                </div>
+
+                <div class="legal-section">
+                    <h2>5. Livraison</h2>
+                    <div class="legal-card">
+                        <h3>Zones de livraison</h3>
+                        <p>Nous livrons dans les pays suivants :</p>
+                        <ul>
+                            <li><strong>France métropolitaine :</strong> 48-72h ouvrées</li>
+                            <li><strong>Union Européenne :</strong> 3-7 jours ouvrés</li>
+                            <li><strong>Autres destinations :</strong> Sur demande</li>
+                        </ul>
+                        
+                        <h3>Modalités de livraison</h3>
+                        <ul>
+                            <li><strong>Expédition :</strong> Sous 24-48h après validation du paiement</li>
+                            <li><strong>Transporteurs :</strong> Colissimo, Chronopost, UPS selon destination</li>
+                            <li><strong>Suivi :</strong> Numéro de tracking fourni par email</li>
+                            <li><strong>Réception :</strong> Signature requise ou remise en boîte aux lettres</li>
+                        </ul>
+                        
+                        <h3>Frais de livraison</h3>
+                        <ul>
+                            <li><strong>France :</strong> 4,90€ (gratuit dès 60€ d'achat)</li>
+                            <li><strong>UE :</strong> 9,90€ (gratuit dès 100€ d'achat)</li>
+                            <li><strong>Express :</strong> Supplément selon destination</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="legal-section">
+                    <h2>6. Droit de rétractation</h2>
+                    <div class="legal-card">
+                        <h3>Délai légal</h3>
+                        <p>Conformément au Code de la consommation, vous disposez d'un délai de <strong>14 jours calendaires</strong> pour exercer votre droit de rétractation sans motif.</p>
+                        
+                        <h3>Point de départ</h3>
+                        <p>Le délai court à compter :</p>
+                        <ul>
+                            <li>De la réception du dernier produit commandé</li>
+                            <li>Du téléchargement pour les produits numériques (ebooks)</li>
+                        </ul>
+                        
+                        <h3>Modalités de retour</h3>
+                        <ul>
+                            <li><strong>Notification :</strong> Email à lv9Dreams@gmail.com</li>
+                            <li><strong>État :</strong> Produits non ouverts, dans emballage d'origine</li>
+                            <li><strong>Retour :</strong> Frais de retour à votre charge</li>
+                            <li><strong>Remboursement :</strong> Sous 14 jours après réception du retour</li>
+                        </ul>
+                        
+                        <h3>Exceptions</h3>
+                        <p><strong>Produits périssables :</strong> Les compléments alimentaires ouverts ne peuvent être retournés pour des raisons d'hygiène.</p>
+                    </div>
+                </div>
+
+                <div class="legal-section">
+                    <h2>7. Garanties et conformité</h2>
+                    <div class="legal-card">
+                        <h3>Garantie de conformité</h3>
+                        <p>Tous nos produits bénéficient de la garantie légale de conformité (articles L217-4 et suivants du Code de la consommation).</p>
+                        
+                        <h3>Qualité des produits</h3>
+                        <ul>
+                            <li><strong>Shilajit authentique :</strong> Certifié d'origine Himalaya</li>
+                            <li><strong>Tests laboratoire :</strong> Pureté et absence de contaminants</li>
+                            <li><strong>Conservation :</strong> Conditions optimales de stockage</li>
+                            <li><strong>Dates de péremption :</strong> Minimum 18 mois à réception</li>
+                        </ul>
+                        
+                        <h3>Réclamations</h3>
+                        <p>En cas de problème avec votre commande :</p>
+                        <ul>
+                            <li>Contactez-nous sous 48h maximum</li>
+                            <li>Fournissez photos et numéro de commande</li>
+                            <li>Solution proposée sous 72h ouvrées</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="legal-section">
+                    <h2>8. Propriété intellectuelle</h2>
+                    <div class="legal-card">
+                        <h3>Droits de LV9Dreams</h3>
+                        <p>Tous les éléments du site sont protégés par le droit de la propriété intellectuelle :</p>
+                        <ul>
+                            <li><strong>Marque LV9Dreams :</strong> Dépôt en cours à l'INPI</li>
+                            <li><strong>Contenu éditorial :</strong> Textes, descriptions, guides</li>
+                            <li><strong>Éléments graphiques :</strong> Logo, visuels, design</li>
+                            <li><strong>Ebooks :</strong> Contenu exclusif et propriétaire</li>
+                        </ul>
+                        <p><strong>Interdiction :</strong> Toute reproduction sans autorisation est strictement interdite.</p>
+                    </div>
+                </div>
+
+                <div class="legal-section">
+                    <h2>9. Responsabilité</h2>
+                    <div class="legal-card">
+                        <h3>Limitations de responsabilité</h3>
+                        <p>La responsabilité de LV9Dreams est limitée dans les cas suivants :</p>
+                        <ul>
+                            <li><strong>Usage conforme :</strong> Nos produits doivent être utilisés selon les recommandations</li>
+                            <li><strong>Interactions médicamenteuses :</strong> Consultez un professionnel de santé</li>
+                            <li><strong>Force majeure :</strong> Événements indépendants de notre volonté</li>
+                            <li><strong>Dommages indirects :</strong> Exclusion des dommages indirects</li>
+                        </ul>
+                        
+                        <h3>Assurance</h3>
+                        <p>LV9Dreams est assurée pour son activité de vente en ligne.</p>
+                    </div>
+                </div>
+
+                <div class="legal-section">
+                    <h2>10. Protection des données</h2>
+                    <div class="legal-card">
+                        <h3>Données personnelles</h3>
+                        <p>Le traitement de vos données personnelles est détaillé dans notre <a href="./confidentialite.html">Politique de confidentialité</a>.</p>
+                        
+                        <h3>Finalités</h3>
+                        <ul>
+                            <li>Traitement et suivi de vos commandes</li>
+                            <li>Service client et support technique</li>
+                            <li>Communications commerciales (avec consentement)</li>
+                            <li>Amélioration de nos services</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="legal-section">
+                    <h2>11. Résolution des litiges</h2>
+                    <div class="legal-card">
+                        <h3>Règlement amiable</h3>
+                        <p>En cas de litige, nous privilégions une résolution amiable :</p>
+                        <ul>
+                            <li><strong>Contact direct :</strong> lv9Dreams@gmail.com</li>
+                            <li><strong>Délai de réponse :</strong> 48h ouvrées maximum</li>
+                            <li><strong>Médiation :</strong> Recours possible à un médiateur</li>
+                        </ul>
+                        
+                        <h3>Médiation de la consommation</h3>
+                        <p>Conformément à l'article L612-1 du Code de la consommation, vous pouvez recourir gratuitement au service de médiation :</p>
+                        <!-- <p><strong>Médiateur :</strong> [À DÉTERMINER selon votre secteur d'activité]</p> -->
+                        
+                        <h3>Juridiction compétente</h3>
+                        <p>À défaut de résolution amiable, les tribunaux de Paris seront seuls compétents.</p>
+                    </div>
+                </div>
+
+                <div class="legal-section">
+                    <h2>12. Dispositions générales</h2>
+                    <div class="legal-card">
+                        <h3>Modifications des CGV</h3>
+                        <p>Ces CGV peuvent être modifiées à tout moment. Les nouvelles conditions s'appliquent aux commandes passées après leur mise en ligne.</p>
+                        
+                        <h3>Nullité partielle</h3>
+                        <p>Si une clause des présentes CGV était déclarée nulle, les autres dispositions resteraient valables.</p>
+                        
+                        <h3>Droit applicable</h3>
+                        <p>Les présentes CGV sont soumises au droit français.</p>
+                        
+                        <h3>Contact</h3>
+                        <ul>
+                            <li><strong>Email :</strong> lv9Dreams@gmail.com</li>
+                            <li><strong>Téléphone :</strong> 07 67 60 67 35</li>
+                            <li><strong>Adresse :</strong> 8 boulevard Kellermann, 75013 Paris</li>
+                        </ul>
+                        
+                        <p><strong>Version :</strong> 1.0 - Dernière mise à jour : 29 juillet 2025</p>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="footer" id="contact">
+            <div class="footer-content">
+                <div class="footer-links">
+                    <a href="./mentions.html">Mentions légales</a>
+                    <a href="./confidentialite.html">Politique de confidentialité</a>
+                    <a href="./cgv.html">CGV</a>
+                    <a href="./contact.html">Contact</a>
+                    <a href="./faq.html">FAQ</a>
+                </div>
+                <div class="footer-bottom">
+                    <p>&copy; 2025 LV9Dreams. Tous droits réservés.</p>
+                </div>
+            </div>
+        </footer>
+
+
+        <button class="theme-toggle" @click="toggleTheme">
+            <span class="theme-icon">🌙</span>
+        </button>
+
+    </div>
+
+    <script src="./app.js"></script>
+</body>
+</html>

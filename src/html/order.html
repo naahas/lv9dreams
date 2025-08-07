@@ -1,0 +1,483 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Commande - LV9Dreams</title>
+
+    <link rel="stylesheet" href="./home.css">
+
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/particles.js/2.0.0/particles.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+    <script src="https://js.stripe.com/v3/"></script>
+
+</head>
+<body>
+    <div id="app">
+        <div id="particles-js"></div>
+        
+        <!-- Navigation -->
+        <nav class="navbar">
+            <div class="nav-container">
+                <div class="logo" @click="refreshPage">LV9Dreams</div>
+                <ul class="nav-links">
+                    <li @click = "goHome()"><a href="#accueil">Accueil</a></li>
+                    <li><a href="#produits">Produits</a></li>
+                    <li><a href="#ebook">eBook</a></li>
+                </ul>
+                <!-- NOUVEAU : Icône panier remplace le toggle thème -->
+                <button class="cart-toggle" @click="toggleCart" :class="{ 'clicked': cartClicked }">
+                    <span class="cart-icon">🛒</span>
+                    <div class="cart-badge" :class="{ 'show': cartItemsCount > 0 }">
+                        {{ cartItemsCount }}
+                    </div>
+                </button>
+            </div>
+        </nav>
+
+        <!-- Header Section -->
+        <section class="order-header">
+            <div class="order-header-content">
+                <!-- NOUVEAU : Bouton retour -->
+                <a href="./" class="back-button" @click.prevent="goHome">
+                    <div class="back-arrow"></div>
+                    <span class="back-button-text">Retour</span>
+                </a>
+                
+                <h1>Finaliser votre commande</h1>
+                <p class="order-subtitle">Complétez vos informations !</p>
+                <div class="progress-bar">
+                    <div class="progress-step active">
+                        <div class="step-number">1</div>
+                        <span>Sélection</span>
+                    </div>
+                    <div class="progress-line active"></div>
+                    <div class="progress-step active">
+                        <div class="step-number">2</div>
+                        <span>Informations</span>
+                    </div>
+                    <div class="progress-line"></div>
+                    <div class="progress-step">
+                        <div class="step-number">3</div>
+                        <span>Confirmation</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Main Order Content -->
+        <section class="order-content">
+            <div class="order-container">
+                
+                <!-- Formulaire Client (Gauche) -->
+                <div class="customer-form">
+                    <div class="form-section">
+                        <h2>📋 Vos informations</h2>
+                        
+                        <form @submit.prevent="submitOrder">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="firstName">Prénom *</label>
+                                    <input 
+                                        type="text" 
+                                        id="firstName" 
+                                        v-model="orderForm.firstName" 
+                                        required
+                                        placeholder="Votre prénom"
+                                    >
+                                </div>
+                                <div class="form-group">
+                                    <label for="lastName">Nom *</label>
+                                    <input 
+                                        type="text" 
+                                        id="lastName" 
+                                        v-model="orderForm.lastName" 
+                                        required
+                                        placeholder="Votre nom"
+                                    >
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="email">Email *</label>
+                                <input 
+                                    type="email" 
+                                    id="email" 
+                                    v-model="orderForm.email" 
+                                    required
+                                    placeholder="votre.email@exemple.com"
+                                >
+                            </div>
+
+                            <div class="form-group">
+                                <label for="phone">Téléphone *</label>
+                                <input 
+                                    type="tel" 
+                                    id="phone" 
+                                    v-model="orderForm.phone" 
+                                    required
+                                    placeholder="06 12 34 56 78"
+                                >
+                            </div>
+
+                            <h3>📍 Adresse de livraison</h3>
+                            
+                            <div class="form-group">
+                                <label for="address">Adresse *</label>
+                                <input 
+                                    type="text" 
+                                    id="address" 
+                                    v-model="orderForm.address" 
+                                    required
+                                    placeholder="123 rue de la Paix"
+                                >
+                            </div>
+
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="postalCode">Code postal *</label>
+                                    <input 
+                                        type="text" 
+                                        id="postalCode" 
+                                        v-model="orderForm.postalCode" 
+                                        required
+                                        placeholder="75001"
+                                    >
+                                </div>
+                                <div class="form-group">
+                                    <label for="city">Ville *</label>
+                                    <input 
+                                        type="text" 
+                                        id="city" 
+                                        v-model="orderForm.city" 
+                                        required
+                                        placeholder="Paris"
+                                    >
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="country">Pays *</label>
+                                <select id="country" v-model="orderForm.country" required>
+                                    <option value="">Sélectionnez un pays</option>
+                                    <option value="France">France</option>
+                                    <option value="Belgique">Belgique</option>
+                                    <option value="Suisse">Suisse</option>
+                                    <option value="Luxembourg">Luxembourg</option>
+                                    <option value="Canada">Canada</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="notes">Notes de livraison (optionnel)</label>
+                                <textarea 
+                                    id="notes" 
+                                    v-model="orderForm.notes"
+                                    rows="3"
+                                    placeholder="Code porte, étage, instructions spéciales..."
+                                ></textarea>
+                            </div>
+
+
+                            <h3>💳 Mode de paiement</h3>
+
+                            <div class="payment-section">
+                                <!-- Sélecteurs de méthodes de paiement -->
+                                <div class="payment-methods">
+                                    <!-- Stripe (Carte bancaire) -->
+                                    <div class="payment-method" :class="{ 'selected': orderForm.paymentMethod === 'stripe' }" @click="selectPaymentMethod('stripe')">
+                                        <div class="payment-icon">💳</div>
+                                        <div class="payment-info">
+                                            <h4>Carte bancaire</h4>
+                                            <p>Paiement sécurisé par Stripe</p>
+                                        </div>
+                                        <div class="payment-radio">
+                                            <div class="radio-dot" :class="{ 'active': orderForm.paymentMethod === 'stripe' }"></div>
+                                        </div>
+                                    </div>
+
+                                    <!-- PayPal -->
+                                    <div class="payment-method" :class="{ 'selected': orderForm.paymentMethod === 'paypal' }" @click="selectPaymentMethod('paypal')">
+                                        <div class="payment-icon">🅿️</div>
+                                        <div class="payment-info">
+                                            <h4>PayPal</h4>
+                                            <p>Paiement sécurisé via PayPal</p>
+                                        </div>
+                                        <div class="payment-radio">
+                                            <div class="radio-dot" :class="{ 'active': orderForm.paymentMethod === 'paypal' }"></div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Formulaire Stripe -->
+                                <div v-if="orderForm.paymentMethod === 'stripe'" class="stripe-payment-form">
+                                    <div class="stripe-fields-container">
+                                        <h4 class="stripe-title">
+                                            <span class="stripe-icon">🔒</span>
+                                            Informations de carte bancaire
+                                        </h4>
+                                        
+                                        <!-- Champ Numéro de carte -->
+                                        <div class="stripe-field-group">
+                                            <label for="stripe-card-number">Numéro de carte *</label>
+                                            <div id="stripe-card-number" class="stripe-field">
+                                                <!-- Stripe CardNumberElement s'injectera ici -->
+                                            </div>
+                                            <div class="stripe-field-error" id="stripe-card-number-error"></div>
+                                        </div>
+                                        
+                                        <!-- Champs Date et CVC -->
+                                        <div class="stripe-fields-row">
+                                            <div class="stripe-field-group">
+                                                <label for="stripe-card-expiry">Date d'expiration *</label>
+                                                <div id="stripe-card-expiry" class="stripe-field">
+                                                    <!-- Stripe CardExpiryElement s'injectera ici -->
+                                                </div>
+                                                <div class="stripe-field-error" id="stripe-card-expiry-error"></div>
+                                            </div>
+                                            
+                                            <div class="stripe-field-group">
+                                                <label for="stripe-card-cvc">Code CVC *</label>
+                                                <div id="stripe-card-cvc" class="stripe-field">
+                                                    <!-- Stripe CardCvcElement s'injectera ici -->
+                                                </div>
+                                                <div class="stripe-field-error" id="stripe-card-cvc-error"></div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Nom du titulaire (champ normal) -->
+                                        <div class="stripe-field-group">
+                                            <label for="card-holder-name">Nom du titulaire *</label>
+                                            <input 
+                                                type="text" 
+                                                id="card-holder-name"
+                                                v-model="orderForm.cardHolderName"
+                                                class="stripe-input"
+                                                placeholder="Nom complet tel qu'il apparaît sur la carte"
+                                                required
+                                            >
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="stripe-info">
+                                        <div class="stripe-security">
+                                            <div class="security-badges">
+                                                <div class="security-badge">
+                                                    <span class="badge-icon">🔒</span>
+                                                    <span>SSL 256-bit</span>
+                                                </div>
+                                                <div class="security-badge">
+                                                    <span class="badge-icon">🛡️</span>
+                                                    <span>3D Secure</span>
+                                                </div>
+                                                <div class="security-badge">
+                                                    <span class="badge-icon">✅</span>
+                                                    <span>PCI DSS</span>
+                                                </div>
+                                            </div>
+                                            <p class="security-description">
+                                                Vos informations bancaires sont traitées de manière sécurisée par Stripe. 
+                                                Nous ne stockons jamais vos données de carte.
+                                            </p>
+                                        </div>
+                                        
+                                        <div class="accepted-cards">
+                                            <div class="cards-title">Cartes acceptées :</div>
+                                            <div class="card-brands">
+                                                <div class="card-brand-item">💳 Visa</div>
+                                                <div class="card-brand-item">💳 Mastercard</div>
+                                                <div class="card-brand-item">💳 American Express</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Section PayPal -->
+                                <div v-if="orderForm.paymentMethod === 'paypal'" class="paypal-payment-form">
+                                    <div class="paypal-info">
+                                        <div class="paypal-logo">
+                                            <div class="paypal-icon">🅿️</div>
+                                            <div class="paypal-text">PayPal</div>
+                                        </div>
+                                        <div class="paypal-description">
+                                            <p>Vous serez redirigé vers PayPal pour finaliser votre paiement en toute sécurité.</p>
+                                            <div class="paypal-benefits">
+                                                <div class="benefit">✅ Protection des achats PayPal</div>
+                                                <div class="benefit">✅ Paiement sans partage de données bancaires</div>
+                                                <div class="benefit">✅ Remboursement garanti</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Récapitulatif Commande (Droite) -->
+                <div class="order-summary">
+                    <div class="summary-section">
+                        <h2>🛒 Votre commande</h2>
+                        
+                        <div class="cart-products-summary" v-if="cartItems.length > 0">
+                            <div v-for="item in cartItems" :key="item.type" class="cart-product-item" :class="{ 'digital-product': item.productType === 'digital' }">
+                                <!-- Badge "Digital" pour les produits numériques -->
+                                <div class="digital-badge" v-if="item.productType === 'digital'">📚 Digital</div>
+                                
+                                <div class="product-item-content">
+                                    <div class="product-item-image">
+                                        <!-- Image directe sans overlay -->
+                                        <img :src="item.image" :alt="item.name">
+                                    </div>
+                                    <div class="product-item-info">
+                                        <h3>{{ item.name }}</h3>
+                                        <div class="product-item-price">
+                                            <span class="current-price">{{ item.price }}€</span>
+                                            <span v-if="item.oldPrice" class="old-price">{{ item.oldPrice }}€</span>
+                                        </div>
+                                        
+                                        <!-- UNE SEULE section contrôles de quantité -->
+                                        <div class="quantity-controls-inline" :class="{ 'digital-controls': item.productType === 'digital' }">
+                                            <button type="button" @click="decreaseQuantity(item.type)" :disabled="item.quantity <= 1" class="qty-btn">-</button>
+                                            <span class="quantity-display" :class="{ 'digital-quantity': item.productType === 'digital' }">{{ item.quantity }}</span>
+                                            <button type="button" @click="increaseQuantity(item.type)" :disabled="item.quantity >= 10" class="qty-btn">+</button>
+                                            <button @click="removeFromCart(item.type)" class="remove-btn" :class="{ 'digital-remove': item.productType === 'digital' }" title="Supprimer">🗑️</button>
+                                        </div>
+                                        
+                                        <!-- Sous-total par produit -->
+                                        <div class="item-subtotal">
+                                            Sous-total: {{ (item.price * item.quantity).toFixed(2) }}€
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Message si panier vide -->
+                        <div v-if="cartItems.length === 0" class="empty-cart-message">
+                            <div class="empty-icon">🛒</div>
+                            <p>Votre panier est vide</p>
+                            <button @click="goHome" class="btn btn-secondary">Retour à l'accueil</button>
+                        </div>
+
+                        <!-- Récapitulatif prix -->
+                        <div class="price-summary" v-if="cartItems.length > 0">
+                            <div class="summary-line">
+                                <span>Sous-total ({{ cartItemsCount }} articles)</span>
+                                <span>{{ getCartTotal() }}€</span>
+                            </div>
+                            <!-- <div class="summary-line" v-if="parseFloat(getTotalSavings()) > 0">
+                                <span class="savings">Économies</span>
+                                <span class="savings">-{{ getTotalSavings() }}€</span>
+                            </div> -->
+                            <div class="summary-line">
+                                <span>Livraison</span>
+                                <span class="free">Gratuite</span>
+                            </div>
+                            <div class="summary-line total">
+                                <span>Total</span>
+                                <span>{{ getCartTotal() }}€</span>
+                            </div>
+                        </div>
+
+                        <!-- Bouton de commande -->
+                        <button 
+                            class="order-button"
+                            @click="submitOrder"
+                            :disabled="!isFormCompletelyValid"
+                            :class="{ 
+                                'submitting': isSubmitting, 
+                                'success': orderSuccess,
+                                'disabled': !isFormCompletelyValid,
+                                'ready': isFormCompletelyValid && !isSubmitting && !orderSuccess
+                            }"
+                        >
+                            <span v-if="!isSubmitting && !orderSuccess && isFormCompletelyValid">
+                                🚀 Finaliser la commande
+                            </span>
+                            <span v-if="!isSubmitting && !orderSuccess && !isFormCompletelyValid">
+                                📝 {{ validationMessage }}
+                            </span>
+                            <span v-if="isSubmitting">
+                                ⏳ Traitement...
+                            </span>
+                            <span v-if="orderSuccess">
+                                ✅ Commande envoyée !
+                            </span>
+                        </button>
+
+                        <!-- <div class="validation-indicator" v-if="!isFormCompletelyValid && cartItems.length > 0">
+                            <div class="validation-icon">⚠️</div>
+                            <div class="validation-text">{{ validationMessage }}</div>
+                        </div> -->
+
+
+                        
+                        <!-- Barre de progression du formulaire -->
+                        <!-- <div class="form-progress" v-if="cartItems.length > 0">
+                            <div class="progress-header">
+                                <span class="progress-label">Progression</span>
+                                <span class="progress-percentage">{{ completionPercentage }}%</span>
+                            </div>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar-fill" :style="{ width: completionPercentage + '%' }"></div>
+                            </div>
+                            <div class="progress-steps">
+                                <div class="progress-step" :class="{ 'completed': cartItems.length > 0 }">
+                                    <span class="step-icon">🛒</span>
+                                    <span class="step-label">Panier</span>
+                                </div>
+                                <div class="progress-step" :class="{ 'completed': isCustomerInfoValid }">
+                                    <span class="step-icon">👤</span>
+                                    <span class="step-label">Infos</span>
+                                </div>
+                                <div class="progress-step" :class="{ 'completed': isPaymentValid }">
+                                    <span class="step-icon">💳</span>
+                                    <span class="step-label">Paiement</span>
+                                </div>
+                            </div>
+                        </div> -->
+
+                        <div v-if="orderError" class="error-message">
+                            ❌ {{ orderError }}
+                        </div>
+
+                        <div class="security-badges">
+                            <div class="badge">🔒 Paiement sécurisé</div>
+                            <div class="badge">📦 Livraison rapide</div>
+                            <div class="badge">↩️ Retour 30 jours</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="footer-content">
+                <div class="footer-links">
+                    <a href="./mentions.html">Mentions légales</a>
+                    <a href="./confidentialite.html">Politique de confidentialité</a>
+                    <a href="./cgv.html">CGV</a>
+                    <a href="./contact.html">Contact</a>
+                    <a href="./faq.html">FAQ</a>
+                </div>
+                <div class="footer-bottom">
+                    <p>&copy; 2025 LV9Dreams. Tous droits réservés.</p>
+                </div>
+            </div>
+        </footer>
+
+
+        <button class="theme-toggle" @click="toggleTheme">
+            <span class="theme-icon">🌙</span>
+        </button>
+
+    </div>
+
+    <script src="./order.js"></script>
+</body>
+</html>

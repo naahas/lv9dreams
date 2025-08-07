@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mentions Légales - LV9Dreams</title>
+
+    <link rel="stylesheet" href="./home.css">
+
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/particles.js/2.0.0/particles.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+</head>
+<body>
+    <div id="app">
+        <div id="particles-js"></div>
+        
+        <!-- Navigation -->
+        <nav class="navbar">
+            <div class="nav-container">
+                <div class="logo" @click="refreshPage">LV9Dreams</div>
+                <ul class="nav-links">
+                    <li @click = "goHome()"><a href="#accueil">Accueil</a></li>
+                    <li><a href="#produits">Produits</a></li>
+                    <li><a href="#ebook">eBook</a></li>
+                </ul>
+                <!-- NOUVEAU : Icône panier remplace le toggle thème -->
+                <button class="cart-toggle" @click="toggleCart" :class="{ 'clicked': cartClicked }">
+                    <span class="cart-icon">🛒</span>
+                    <div class="cart-badge" :class="{ 'show': cartItemsCount > 0 }">
+                        {{ cartItemsCount }}
+                    </div>
+                </button>
+            </div>
+        </nav>
+
+        <!-- Hero Section -->
+        <section class="hero">
+            <div class="hero-content">
+                <h1>Mentions Légales</h1>
+                <p class="hero-subtitle">Informations légales et réglementaires</p>
+                <!-- <div class="scroll-arrow">
+                    <svg class="arrow-svg" width="60" height="40" viewBox="0 0 60 40" xmlns="http://www.w3.org/2000/svg">
+                        <g class="arrow-group" transform="translate(0, -5)">
+                            <path d="M15 8 L30 18 L45 8" stroke="#d4af37" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M12 6 L30 20 L48 6" stroke="#d4af37" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
+                            <path d="M18 10 L30 16 L42 10" stroke="#d4af37" stroke-width="1" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"/>
+                        </g>
+                        
+                        <g class="arrow-group" transform="translate(0, 8)">
+                            <path d="M15 8 L30 18 L45 8" stroke="#d4af37" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M12 6 L30 20 L48 6" stroke="#d4af37" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
+                            <path d="M18 10 L30 16 L42 10" stroke="#d4af37" stroke-width="1" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"/>
+                        </g>
+                    </svg>
+                </div> -->
+            </div>
+            
+            <!-- Floating particles -->
+            <div class="particle" style="top: 20%; left: 10%; width: 4px; height: 4px; animation-delay: 0s;"></div>
+            <div class="particle" style="top: 60%; left: 80%; width: 6px; height: 6px; animation-delay: 2s;"></div>
+            <div class="particle" style="top: 30%; left: 70%; width: 3px; height: 3px; animation-delay: 4s;"></div>
+            <div class="particle" style="top: 80%; left: 20%; width: 5px; height: 5px; animation-delay: 1s;"></div>
+        </section>
+
+        <!-- Legal Content Section -->
+        <section class="legal-content">
+            <div class="legal-container">
+                
+                <div class="legal-section">
+                    <h2>1. Informations générales</h2>
+                    <div class="legal-card">
+                        <h3>Editeur</h3>
+                        <!-- <p><strong>Nom :</strong> JAMI ADAM </p> -->
+                        <p><strong>Statut :</strong> Auto-entrepreneur</p>
+                        <p><strong>Adresse :</strong> 8 boulevard Kellermann, 75013 Paris, France</p>
+                        <p><strong>Email :</strong> lv9Dreams@gmail.com</p>
+                        <p><strong>Téléphone :</strong> 07 67 60 67 35</p>
+                        <p><strong>SIRET :</strong> [En cours] </p>
+                    </div>
+                </div>
+
+                <div class="legal-section">
+                    <h2>2. Hébergement</h2>
+                    <div class="legal-card">
+                        <h3>Hébergeur du site</h3>
+                        <p><strong>Nom :</strong> Heroku, Inc.</p>
+                        <p><strong>Adresse :</strong> 50 Fremont Street, Suite 300, San Francisco, CA 94105, États-Unis</p>
+                        <p><strong>Site web :</strong> <a href="https://www.heroku.com" target="_blank">https://www.heroku.com</a></p>
+                    </div>
+                </div>
+
+                <div class="legal-section">
+                    <h2>3. Propriété intellectuelle</h2>
+                    <div class="legal-card">
+                        <p>L'ensemble de ce site relève de la législation française et internationale sur le droit d'auteur et la propriété intellectuelle. Tous les droits de reproduction sont réservés, y compris pour les documents téléchargeables et les représentations iconographiques et photographiques.</p>
+                        <p>La marque "LV9Dreams" ainsi que tous les logos et éléments graphiques du site sont la propriété exclusive de l'éditeur.</p>
+                    </div>
+                </div>
+
+                <div class="legal-section">
+                    <h2>4. Responsabilité</h2>
+                    <div class="legal-card">
+                        <p>L'éditeur s'efforce d'assurer au mieux de ses possibilités, l'exactitude et la mise à jour des informations diffusées sur ce site. Toutefois, il ne peut garantir l'exactitude, la précision ou l'exhaustivité des informations mises à disposition sur ce site.</p>
+                        <p>En conséquence, l'éditeur décline toute responsabilité pour les imprécisions, inexactitudes ou omissions portant sur des informations disponibles sur ce site.</p>
+                    </div>
+                </div>
+
+                <div class="legal-section">
+                    <h2>5. Données personnelles</h2>
+                    <div class="legal-card">
+                        <p>Conformément au Règlement Général sur la Protection des Données (RGPD) et à la loi "Informatique et Libertés", vous disposez d'un droit d'accès, de rectification, de suppression et d'opposition au traitement de vos données personnelles.</p>
+                        <p>Pour exercer ces droits, vous pouvez nous contacter à l'adresse : lv9Dreams@gmail.com</p>
+                        <p>Pour plus d'informations, consultez notre <a href="./confidentialite.html">Politique de confidentialité</a>.</p>
+                    </div>
+                </div>
+
+                <div class="legal-section">
+                    <h2>6. Cookies</h2>
+                    <div class="legal-card">
+                        <p>Ce site utilise des cookies pour améliorer votre expérience de navigation. En continuant à utiliser ce site, vous acceptez l'utilisation de cookies.</p>
+                        <p>Vous pouvez paramétrer votre navigateur pour refuser les cookies ou être alerté lors de leur dépôt.</p>
+                    </div>
+                </div>
+
+                <div class="legal-section">
+                    <h2>7. Droit applicable</h2>
+                    <div class="legal-card">
+                        <p>Les présentes mentions légales sont soumises au droit français. En cas de litige, les tribunaux français seront seuls compétents.</p>
+                        <p>Si une disposition des présentes mentions légales était déclarée nulle ou inapplicable, les autres dispositions resteraient en vigueur.</p>
+                    </div>
+                </div>
+
+                <div class="legal-section">
+                    <h2>8. Contact</h2>
+                    <div class="legal-card">
+                        <p>Pour toute question concernant ces mentions légales, vous pouvez nous contacter :</p>
+                        <ul>
+                            <li><strong>Email :</strong> lv9Dreams@gmail.com</li>
+                            <li><strong>Téléphone :</strong> 07 67 60 67 35</li>
+                            <li><strong>Courrier :</strong> 8 boulevard Kellermann, 75013 Paris, France</li>
+                        </ul>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="footer" id="contact">
+            <div class="footer-content">
+                <div class="footer-links">
+                    <a href="./mentions.html">Mentions légales</a>
+                    <a href="./confidentialite.html">Politique de confidentialité</a>
+                    <a href="./cgv.html">CGV</a>
+                    <a href="./contact.html">Contact</a>
+                    <a href="./faq.html">FAQ</a>
+                </div>
+                <div class="footer-bottom">
+                    <p>&copy; 2025 LV9Dreams. Tous droits réservés.</p>
+                </div>
+            </div>
+        </footer>
+
+        <button class="theme-toggle" @click="toggleTheme">
+            <span class="theme-icon">🌙</span>
+        </button>
+
+    </div>
+
+    <script src="./app.js"></script>
+</body>
+</html>

@@ -1,0 +1,295 @@
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact - LV9Dreams</title>
+
+    <link rel="stylesheet" href="./home.css">
+
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/particles.js/2.0.0/particles.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+</head>
+<body>
+    <div id="app">
+        <div id="particles-js"></div>
+        
+        <!-- Navigation -->
+        <nav class="navbar">
+            <div class="nav-container">
+                <div class="logo" @click="refreshPage">LV9Dreams</div>
+                <ul class="nav-links">
+                    <li @click = "goHome()"><a href="#accueil">Accueil</a></li>
+                    <li><a href="#produits">Produits</a></li>
+                    <li><a href="#ebook">eBook</a></li>
+                </ul>
+                <!-- NOUVEAU : Icône panier remplace le toggle thème -->
+                <button class="cart-toggle" @click="toggleCart" :class="{ 'clicked': cartClicked }">
+                    <span class="cart-icon">🛒</span>
+                    <div class="cart-badge" :class="{ 'show': cartItemsCount > 0 }">
+                        {{ cartItemsCount }}
+                    </div>
+                </button>
+            </div>
+        </nav>
+
+        <!-- Hero Section -->
+        <section class="hero">
+            <div class="hero-content">
+                <h1>Contactez-nous</h1>
+                <p class="hero-subtitle">Notre équipe est là pour vous accompagner</p>
+                <!-- <div class="scroll-arrow">
+                    <svg class="arrow-svg" width="60" height="40" viewBox="0 0 60 40" xmlns="http://www.w3.org/2000/svg">
+                        <g class="arrow-group" transform="translate(0, -5)">
+                            <path d="M15 8 L30 18 L45 8" stroke="#d4af37" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M12 6 L30 20 L48 6" stroke="#d4af37" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
+                            <path d="M18 10 L30 16 L42 10" stroke="#d4af37" stroke-width="1" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"/>
+                        </g>
+                        
+                        <g class="arrow-group" transform="translate(0, 8)">
+                            <path d="M15 8 L30 18 L45 8" stroke="#d4af37" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M12 6 L30 20 L48 6" stroke="#d4af37" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>
+                            <path d="M18 10 L30 16 L42 10" stroke="#d4af37" stroke-width="1" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"/>
+                        </g>
+                    </svg>
+                </div> -->
+            </div>
+            
+            <!-- Floating particles -->
+            <div class="particle" style="top: 20%; left: 10%; width: 4px; height: 4px; animation-delay: 0s;"></div>
+            <div class="particle" style="top: 60%; left: 80%; width: 6px; height: 6px; animation-delay: 2s;"></div>
+            <div class="particle" style="top: 30%; left: 70%; width: 3px; height: 3px; animation-delay: 4s;"></div>
+            <div class="particle" style="top: 80%; left: 20%; width: 5px; height: 5px; animation-delay: 1s;"></div>
+        </section>
+
+        <!-- Contact Content Section -->
+        <section class="contact-content">
+            <div class="contact-container">
+                
+                <!-- Contact Info Cards -->
+                <div class="contact-info">
+                    <h2>Nos coordonnées</h2>
+                    <div class="info-cards">
+                        
+                        <div class="info-card">
+                            <div class="info-icon">📧</div>
+                            <h3>Email</h3>
+                            <p>lv9Dreams@gmail.com</p>
+                            <small>Réponse sous 48h ouvrées</small>
+                        </div>
+
+                        <div class="info-card">
+                            <div class="info-icon">📞</div>
+                            <h3>Téléphone</h3>
+                            <p>07 67 60 67 35</p>
+                            <small>Lundi à Samedi : 12h-22h</small>
+                        </div>
+
+                        <!-- <div class="info-card">
+                            <div class="info-icon">📍</div>
+                            <h3>Adresse</h3>
+                            <p>8 boulevard Kellermann<br>75013 Paris, France</p>
+                            <small>Sur rendez-vous uniquement</small>
+                        </div> -->
+
+                        <div class="info-card">
+                            <div class="info-icon">⏰</div>
+                            <h3>Horaires de réponse</h3>
+                            <p>Lundi - Vendredi<br>12h00 - 22h00</p>
+                            <small>Fermé week-ends et jours fériés</small>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Contact Form -->
+                <div class="contact-form-section">
+                    <h2>Envoyez-nous un message</h2>
+                    
+                    <form class="contact-form" @submit.prevent="submitForm">
+                        <div class="form-group">
+                            <label for="subject">Sujet de votre demande</label>
+                            <select id="subject" v-model="contactForm.subject" required>
+                                <option value="">Sélectionnez un sujet</option>
+                                <option value="product">Question sur nos produits</option>
+                                <option value="order">Suivi de commande</option>
+                                <option value="return">Retour / Échange</option>
+                                <option value="partnership">Partenariat</option>
+                                <option value="support">Support technique</option>
+                                <option value="other">Autre</option>
+                            </select>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="firstName">Prénom *</label>
+                                <input 
+                                    type="text" 
+                                    id="firstName" 
+                                    v-model="contactForm.firstName" 
+                                    required
+                                    placeholder="Votre prénom"
+                                >
+                            </div>
+                            <div class="form-group">
+                                <label for="lastName">Nom *</label>
+                                <input 
+                                    type="text" 
+                                    id="lastName" 
+                                    v-model="contactForm.lastName" 
+                                    required
+                                    placeholder="Votre nom"
+                                >
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="email">Email *</label>
+                            <input 
+                                type="email" 
+                                id="email" 
+                                v-model="contactForm.email" 
+                                required
+                                placeholder="votre.email@exemple.com"
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label for="phone">Téléphone (optionnel)</label>
+                            <input 
+                                type="tel" 
+                                id="phone" 
+                                v-model="contactForm.phone"
+                                placeholder="06 12 34 56 78"
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label for="orderNumber">Numéro de commande (si applicable)</label>
+                            <input 
+                                type="text" 
+                                id="orderNumber" 
+                                v-model="contactForm.orderNumber"
+                                placeholder="LV9-2025-001234"
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label for="message">Message *</label>
+                            <textarea 
+                                id="message" 
+                                v-model="contactForm.message" 
+                                required
+                                rows="6"
+                                placeholder="Décrivez votre demande en détail..."
+                            ></textarea>
+                            <div class="char-counter">
+                                {{ contactForm.message.length }} / 1000 caractères
+                            </div>
+                        </div>
+<!-- 
+                        <div class="form-group checkbox-group">
+                            <label class="checkbox-label">
+                                <input 
+                                    type="checkbox" 
+                                    v-model="contactForm.newsletter"
+                                >
+                                <span class="checkmark"></span>
+                                Je souhaite recevoir la newsletter LV9Dreams avec les offres exclusives
+                            </label>
+                        </div> -->
+
+                        <div class="form-group checkbox-group">
+                            <label class="checkbox-container">
+                                <input 
+                                    type="checkbox" 
+                                    v-model="contactForm.privacy" 
+                                    required
+                                >
+                                <span class="custom-checkbox"></span>
+                                <span class="checkbox-text">
+                                    J'accepte la <a href="./confidentialite.html" target="_blank">politique de confidentialité</a> *
+                                </span>
+                            </label>
+                        </div>
+
+                        <button 
+                            type="submit" 
+                            class="submit-btn"
+                            :disabled="isSubmitting"
+                            :class="{ 'submitting': isSubmitting, 'success': submitSuccess }"
+                        >
+                            <span v-if="!isSubmitting && !submitSuccess">
+                                📨 Envoyer le message
+                            </span>
+                            <span v-if="isSubmitting">
+                                ⏳ Envoi en cours...
+                            </span>
+                            <span v-if="submitSuccess">
+                                ✅ Message envoyé !
+                            </span>
+                        </button>
+
+                        <div v-if="submitError" class="error-message">
+                            ❌ {{ submitError }}
+                        </div>
+
+                    </form>
+                </div>
+
+                <!-- FAQ Quick Links -->
+                <div class="quick-help">
+                    <h2>Besoin d'aide rapide ?</h2>
+                    <div class="help-cards">
+                        
+                        <a href="./faq.html" class="help-card">
+                            <div class="help-icon">❓</div>
+                            <h3>FAQ</h3>
+                            <p>Consultez nos questions fréquentes pour obtenir une réponse immédiate</p>
+                        </a>
+
+                        <a href="./cgv.html" class="help-card">
+                            <div class="help-icon">📋</div>
+                            <h3>CGV</h3>
+                            <p>Informations sur la livraison, retours et conditions de vente</p>
+                        </a>
+
+                        <a href="/#produits" class="help-card">
+                            <div class="help-icon">🏺</div>
+                            <h3>Nos produits</h3>
+                            <p>Découvrez notre gamme complète de Shilajit premium</p>
+                        </a>
+
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="footer" id="contact">
+            <div class="footer-content">
+                <div class="footer-links">
+                    <a href="./mentions.html">Mentions légales</a>
+                    <a href="./confidentialite.html">Politique de confidentialité</a>
+                    <a href="./cgv.html">CGV</a>
+                    <a href="./contact.html">Contact</a>
+                    <a href="./faq.html">FAQ</a>
+                </div>
+                <div class="footer-bottom">
+                    <p>&copy; 2025 LV9Dreams. Tous droits réservés.</p>
+                </div>
+            </div>
+        </footer>
+
+        <button class="theme-toggle" @click="toggleTheme">
+            <span class="theme-icon">🌙</span>
+        </button>
+
+    </div>
+
+    <script src="./app.js"></script>
+</body>
+</html>
