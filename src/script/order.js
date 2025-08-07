@@ -248,6 +248,57 @@ mountStripeElements() {
             });
             
             console.log('✅ Gestion d\'erreurs Stripe configurée');
+
+             setTimeout(() => {
+        console.log('🧪 DEBUG STRIPE FIELDS:');
+        
+        // Vérifier les iframes Stripe
+        const stripeFrames = document.querySelectorAll('iframe[name^="__privateStripeFrame"]');
+        console.log('📱 Iframes Stripe trouvées:', stripeFrames.length);
+        
+        stripeFrames.forEach((frame, index) => {
+            console.log(`Frame ${index}:`, {
+                name: frame.name,
+                src: frame.src,
+                style: frame.style.cssText,
+                clientWidth: frame.clientWidth,
+                clientHeight: frame.clientHeight
+            });
+        });
+        
+        // Vérifier les conteneurs
+        const containers = [
+            'stripe-card-number',
+            'stripe-card-expiry', 
+            'stripe-card-cvc'
+        ];
+        
+        containers.forEach(id => {
+            const container = document.getElementById(id);
+            if (container) {
+                console.log(`📦 Container ${id}:`, {
+                    exists: true,
+                    visible: container.offsetParent !== null,
+                    width: container.offsetWidth,
+                    height: container.offsetHeight,
+                    children: container.children.length,
+                    innerHTML: container.innerHTML.length > 0 ? 'Has content' : 'Empty'
+                });
+            }
+        });
+        
+        // Tester l'interactivité
+        console.log('🎯 Test focus sur le champ numéro...');
+        const numberContainer = document.getElementById('stripe-card-number');
+        if (numberContainer) {
+            const iframe = numberContainer.querySelector('iframe');
+            if (iframe) {
+                iframe.focus();
+                console.log('✅ Focus appliqué sur iframe');
+            }
+        }
+        
+    }, 3000); 
         },
 
         // Méthode pour traduire les erreurs Stripe en français
@@ -896,17 +947,6 @@ forceStripeInit: function() {
         
 
 
-        // NOUVEAU : Pourcentage de completion
-        completionPercentage: function() {
-            let completed = 0;
-            let total = 3; // Panier + Infos + Paiement
-            
-            if (this.cartItems.length > 0) completed++;
-            if (this.isCustomerInfoValid) completed++;
-            if (this.isPaymentValid) completed++;
-            
-            return Math.round((completed / total) * 100);
-        }
     },
 
   
