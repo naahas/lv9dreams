@@ -1,6 +1,5 @@
 
-const ADMIN_PASSWORD = 'lv9adreamoussment4lity';
-const ADMIN_KEY = 'lv9adreamoussment4lity';
+let ADMIN_KEY = null;
 
 const MAX_ATTEMPTS = 3;
 let loginAttempts = parseInt(localStorage.getItem('admin_attempts') || '0');
@@ -51,51 +50,32 @@ var adminApp = new Vue({
         },
 
         showPasswordPrompt: function() {
-            // Vérifier blocage temporaire
-            const blockedUntil = localStorage.getItem('admin_blocked_until');
-            if (blockedUntil && Date.now() < parseInt(blockedUntil)) {
-                alert('🚫 Accès bloqué temporairement. Réessayez plus tard.');
-                window.location.href = './';
-                return;
-            }
+    // Vérifier blocage temporaire
+    const blockedUntil = localStorage.getItem('admin_blocked_until');
+    if (blockedUntil && Date.now() < parseInt(blockedUntil)) {
+        alert('🚫 Accès bloqué temporairement. Réessayez plus tard.');
+        window.location.href = './';
+        return;
+    }
 
-            if (loginAttempts >= MAX_ATTEMPTS) {
-                const blockTime = Date.now() + (60 * 60 * 1000); // 1h
-                localStorage.setItem('admin_blocked_until', blockTime);
-                alert('🚫 Trop de tentatives. Accès bloqué pendant 1h.');
-                window.location.href = './';
-                return;
-            }
+    if (loginAttempts >= MAX_ATTEMPTS) {
+        const blockTime = Date.now() + (60 * 60 * 1000); // 1h
+        localStorage.setItem('admin_blocked_until', blockTime);
+        alert('🚫 Trop de tentatives. Accès bloqué pendant 1h.');
+        window.location.href = './';
+        return;
+    }
 
-            const password = prompt('🔐 Accès Administrateur\nMot de passe requis :');
-            
-            if (password === ADMIN_PASSWORD) {
-                // Connexion réussie
-                loginAttempts = 0;
-                localStorage.setItem('admin_attempts', '0');
-                sessionStorage.setItem('lv9_admin_access', 'true');
-                sessionStorage.setItem('lv9_admin_login_time', Date.now().toString());
-                this.showDashboard();
-            } else if (password !== null) {
-                // Mauvais mot de passe
-                loginAttempts++;
-                localStorage.setItem('admin_attempts', loginAttempts.toString());
-                const remaining = MAX_ATTEMPTS - loginAttempts;
-                
-                if (remaining > 0) {
-                    alert(`❌ Mot de passe incorrect\n${remaining} tentative(s) restante(s)`);
-                    this.showPasswordPrompt();
-                } else {
-                    const blockTime = Date.now() + (60 * 60 * 1000);
-                    localStorage.setItem('admin_blocked_until', blockTime);
-                    alert('🚫 Accès bloqué pendant 1h');
-                    window.location.href = './';
-                }
-            } else {
-                // Annulé
-                window.location.href = './';
-            }
-        },
+    const password = prompt('🔐 Accès Administrateur\nMot de passe requis :');
+    
+    // ✅ NOUVELLE VERSION SIMPLE ET CORRECTE
+    if (password !== null) {
+        this.verifyPasswordWithServer(password);
+    } else {
+        // Annulé
+        window.location.href = './';
+    }
+},
 
         showDashboard: function() {
             document.getElementById('admin-loading').style.display = 'none';
@@ -124,12 +104,56 @@ var adminApp = new Vue({
             }, 500);
         },
 
+
+        verifyPasswordWithServer: async function(password) {
+    try {
+        const response = await fetch('/api/admin/verify-password', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ password: password })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Connexion réussie
+            loginAttempts = 0;
+            localStorage.setItem('admin_attempts', '0');
+            sessionStorage.setItem('lv9_admin_access', 'true');
+            sessionStorage.setItem('lv9_admin_login_time', Date.now().toString());
+            sessionStorage.setItem('lv9_admin_key', password);
+            ADMIN_KEY = password;
+            this.showDashboard();
+        } else {
+            // Mauvais mot de passe
+            loginAttempts++;
+            localStorage.setItem('admin_attempts', loginAttempts.toString());
+            const remaining = MAX_ATTEMPTS - loginAttempts;
+            
+            if (remaining > 0) {
+                alert(`❌ Mot de passe incorrect\n${remaining} tentative(s) restante(s)`);
+                this.showPasswordPrompt();
+            } else {
+                const blockTime = Date.now() + (60 * 60 * 1000);
+                localStorage.setItem('admin_blocked_until', blockTime);
+                alert('🚫 Accès bloqué pendant 1h');
+                window.location.href = './';
+            }
+        }
+    } catch (error) {
+        console.error('❌ Erreur vérification:', error);
+        alert('❌ Erreur de connexion');
+    }
+},
+
         loadStats: function() {
             // 🆕 NOUVEAU : Récupérer les vraies stats depuis l'API
             fetch('/api/admin/stats', {
                 method: 'GET',
                 headers: {
-                    'x-admin-key': ADMIN_KEY,
+                    'x-admin-key': sessionStorage.getItem('lv9_admin_key'),
                     'Content-Type': 'application/json'
                 }
             })
@@ -185,7 +209,7 @@ var adminApp = new Vue({
             fetch('/api/admin/orders?page=1&limit=10', {
                 method: 'GET',
                 headers: {
-                    'x-admin-key': ADMIN_KEY,
+                    'x-admin-key': sessionStorage.getItem('lv9_admin_key'),
                     'Content-Type': 'application/json'
                 }
             })
@@ -347,7 +371,7 @@ var adminApp = new Vue({
             fetch(`/api/admin/orders?page=${page}&limit=10`, {
                 method: 'GET',
                 headers: {
-                    'x-admin-key': ADMIN_KEY,
+                    'x-admin-key': sessionStorage.getItem('lv9_admin_key'),
                     'Content-Type': 'application/json'
                 }
             })
@@ -447,7 +471,7 @@ var adminApp = new Vue({
             fetch('/api/admin/clear-orders', {
                 method: 'DELETE',
                 headers: {
-                    'x-admin-key': ADMIN_KEY, 
+                    'x-admin-key': sessionStorage.getItem('lv9_admin_key'), 
                     'Content-Type': 'application/json'
                 }
             })
@@ -483,7 +507,7 @@ var adminApp = new Vue({
             fetch('/api/admin/clear-test-orders', {
                 method: 'DELETE',
                 headers: {
-                    'x-admin-key': ADMIN_KEY,
+                    'x-admin-key': sessionStorage.getItem('lv9_admin_key'),
                     'Content-Type': 'application/json'
                 }
             })

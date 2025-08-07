@@ -55,12 +55,13 @@ const validateAdminKey = (req, res, next) => {
 // Session middleware
 const tmin = 60000; // 1 min
 const sessionMiddleware = session({
-    secret: 'secret', // À changer en production !
+    secret: process.env.SESSION_SECRET || 'fallback-secret-change-in-production',
     resave: true,
     saveUninitialized: true,
     cookie: {
         maxAge: 30 * tmin,
-        sameSite: 'lax'
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production' // HTTPS en production
     }
 });
 
@@ -322,6 +323,17 @@ app.delete('/api/admin/clear-test-orders', validateAdminKey, async function(req,
             message: 'Erreur lors de la suppression des commandes de test',
             error: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
+    }
+});
+
+
+app.post('/api/admin/verify-password', (req, res) => {
+    const { password } = req.body;
+    
+    if (password === process.env.ADMIN_KEY) {
+        res.json({ success: true });
+    } else {
+        res.json({ success: false });
     }
 });
 
