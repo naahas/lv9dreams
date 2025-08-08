@@ -60,7 +60,23 @@ var app = new Vue({
                 cartItemsCount: 0,
                 cartClicked: false,
                 isCartOpen: false,
-                cartLoaded: false
+                cartLoaded: false,
+
+                // 🆕 Données pour le compteur de visiteurs
+                visitorStats: {
+                    onlineVisitors: 0,
+                    todayVisits: 0,
+                    todayUniqueVisitors: 0,
+                    totalVisits: 0,
+                    totalUniqueVisitors: 0,
+                    visitorsChange: 0,
+                    connectedUsers: 0
+                },
+                showVisitorPopup: false,
+                onlineChanged: false,
+                todayChanged: false,
+                visitorStatsInterval: null,
+                socket: null
             }
         },
 
@@ -226,6 +242,36 @@ var app = new Vue({
                 }
             },
 
+            enableAdminCounter() {
+    // Fonction secrète pour activer le compteur (au cas où)
+    sessionStorage.setItem('lv9_admin_counter', 'true');
+    this.initVisitorCounter();
+},
+
+
+checkAdminStatusPeriodically() {
+    setInterval(() => {
+        if (!this.checkIfUserIsAdmin()) {
+            // L'utilisateur n'est plus admin, masquer le compteur
+            const counter = document.querySelector('.visitor-counter');
+            const popup = document.querySelector('.visitor-popup');
+            
+            if (counter) counter.style.display = 'none';
+            if (popup) popup.style.display = 'none';
+            
+            // Arrêter les mises à jour
+            if (this.visitorStatsInterval) {
+                clearInterval(this.visitorStatsInterval);
+                this.visitorStatsInterval = null;
+            }
+            
+            console.log('🔒 Compteur désactivé - Session admin expirée');
+        }
+    }, 60000); // Vérifier toutes les minutes
+},
+
+
+
             // NOUVELLE : Notification très discrète (mini toast)
             showDiscreteNotification: function(productType) {
                 const productNames = {
@@ -301,6 +347,165 @@ var app = new Vue({
                     }, 300);
                 }, 2000);
             },
+
+
+            async initVisitorCounter() {
+    try {
+        console.log('👥 Initialisation compteur visiteurs...');
+        
+        // Enregistrer cette visite (pour tous les visiteurs - tracking invisible)
+        const response = await fetch('/api/visit', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            console.log('✅ Visite enregistrée silencieusement');
+        }
+        
+        // 🔒 VÉRIFIER SI L'UTILISATEUR EST ADMIN
+        const isAdmin = this.checkIfUserIsAdmin();
+        
+        if (isAdmin) {
+            console.log('👨‍💼 Utilisateur admin détecté - Activation du compteur');
+            
+            // Charger les stats pour l'admin
+            await this.loadVisitorStats();
+            this.startVisitorStatsUpdates();
+            this.initSocketIO();
+            
+            // Rendre le compteur visible
+            const counter = document.querySelector('.visitor-counter');
+            if (counter) {
+                counter.style.display = 'block';
+                counter.style.opacity = '1';
+            }
+        } else {
+            console.log('👤 Visiteur normal - Compteur masqué');
+            
+            // Masquer complètement le compteur
+            const counter = document.querySelector('.visitor-counter');
+            const popup = document.querySelector('.visitor-popup');
+            
+            if (counter) counter.style.display = 'none';
+            if (popup) popup.style.display = 'none';
+        }
+        
+    } catch (error) {
+        console.error('❌ Erreur initialisation visiteurs:', error);
+    }
+},
+
+    // Charger les statistiques visiteurs
+    async loadVisitorStats() {
+        try {
+            const response = await fetch('/api/visitor-stats');
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    const oldOnline = this.visitorStats.onlineVisitors;
+                    const oldToday = this.visitorStats.todayVisits;
+                    
+                    this.visitorStats = { ...data.data };
+                    
+                    // Animations pour les changements
+                    if (oldOnline !== this.visitorStats.onlineVisitors) {
+                        this.triggerNumberAnimation('online');
+                    }
+                    if (oldToday !== this.visitorStats.todayVisits) {
+                        this.triggerNumberAnimation('today');
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('❌ Erreur chargement stats visiteurs:', error);
+        }
+    },
+
+    // Démarrer les mises à jour automatiques
+    startVisitorStatsUpdates() {
+        // Mise à jour toutes les 30 secondes
+        this.visitorStatsInterval = setInterval(() => {
+            this.loadVisitorStats();
+        }, 30000);
+        
+        console.log('⏰ Mises à jour automatiques des stats démarrées');
+    },
+
+    // Initialiser Socket.IO pour les mises à jour temps réel
+    initSocketIO() {
+        try {
+            // Utiliser la connexion Socket.IO existante ou en créer une nouvelle
+            if (typeof io !== 'undefined') {
+                this.socket = io();
+                
+                // Écouter les mises à jour de visiteurs
+                this.socket.on('visitorUpdate', (data) => {
+                    console.log('📡 Mise à jour visiteurs temps réel:', data);
+                    
+                    const oldOnline = this.visitorStats.onlineVisitors;
+                    const oldToday = this.visitorStats.todayVisits;
+                    
+                    // Mettre à jour les stats
+                    this.visitorStats = {
+                        ...this.visitorStats,
+                        ...data
+                    };
+                    
+                    // Animations
+                    if (oldOnline !== this.visitorStats.onlineVisitors) {
+                        this.triggerNumberAnimation('online');
+                    }
+                    if (oldToday !== this.visitorStats.todayVisits) {
+                        this.triggerNumberAnimation('today');
+                    }
+                });
+                
+                console.log('🔗 Socket.IO connecté pour les stats visiteurs');
+            }
+        } catch (error) {
+            console.error('❌ Erreur Socket.IO visiteurs:', error);
+        }
+    },
+
+    // Animation des changements de chiffres
+    triggerNumberAnimation(type) {
+        if (type === 'online') {
+            this.onlineChanged = true;
+            setTimeout(() => { this.onlineChanged = false; }, 500);
+        } else if (type === 'today') {
+            this.todayChanged = true;
+            setTimeout(() => { this.todayChanged = false; }, 500);
+        }
+    },
+
+    // Toggle popup détaillée
+    toggleVisitorPopup() {
+        this.showVisitorPopup = !this.showVisitorPopup;
+        
+        if (this.showVisitorPopup) {
+            // Rafraîchir les stats quand on ouvre la popup
+            this.loadVisitorStats();
+        }
+    },
+
+    // Fermer la popup
+    closeVisitorPopup() {
+        this.showVisitorPopup = false;
+    },
+
+    // Formater les gros nombres
+    formatNumber(num) {
+        if (num >= 1000000) {
+            return (num / 1000000).toFixed(1) + 'M';
+        } else if (num >= 1000) {
+            return (num / 1000).toFixed(1) + 'k';
+        }
+        return num.toString();
+    },
 
 
              toggleCart: function() {
@@ -673,6 +878,19 @@ var app = new Vue({
                 }
             },
 
+
+            beforeDestroy: function() {
+    // Nettoyer l'intervalle
+    if (this.visitorStatsInterval) {
+        clearInterval(this.visitorStatsInterval);
+    }
+    
+    // Déconnecter Socket.IO
+    if (this.socket) {
+        this.socket.disconnect();
+    }
+},
+
             // Exemple pour ouvrir un produit
             openProduct: function(productId) {
                 this.selectedProduct = productId;
@@ -683,6 +901,7 @@ var app = new Vue({
 
         mounted: function() {
             this.loadCartFromStorage();
+            this.initVisitorCounter();
 
   
         },

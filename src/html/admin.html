@@ -87,6 +87,30 @@
                             <div class="stat-subtitle">{{ stats.conversionRate }}% conversion</div>
                         </div>
                     </div>
+
+
+                    <div class="stat-card admin-visitor-card">
+                        <div class="stat-icon">👥</div>
+                        <div class="stat-info">
+                            <div class="stat-title">Visiteurs Aujourd'hui</div>
+                            <div class="stat-value">{{ visitorStats.todayVisits }}</div>
+                            <div class="stat-change positive" v-if="visitorStats.visitorsChange >= 0">
+                                +{{ visitorStats.visitorsChange.toFixed(1) }}% vs hier
+                            </div>
+                            <div class="stat-change negative" v-else>
+                                {{ visitorStats.visitorsChange.toFixed(1) }}% vs hier
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card admin-visitor-card">
+                        <div class="stat-icon">🟢</div>
+                        <div class="stat-info">
+                            <div class="stat-title">En Ligne Maintenant</div>
+                            <div class="stat-value">{{ visitorStats.onlineVisitors }}</div>
+                            <div class="stat-subtitle">{{ visitorStats.todayUniqueVisitors }} uniques aujourd'hui</div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Charts Section -->
@@ -171,6 +195,7 @@
                         <!-- NOUVEAUX BOUTONS avec classes correctes -->
                         <button class="action-btn action-btn-warning" @click="clearTestOrders">🧹 Nettoyer tests</button>
                         <button class="action-btn action-btn-danger" @click="clearAllOrders">🗑️ Vider commandes</button>
+                        <button class="action-btn" @click="cleanOldSessions">🧹 Nettoyer sessions</button>
                     </div>
                 </div>
 

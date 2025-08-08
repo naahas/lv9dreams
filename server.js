@@ -4,7 +4,7 @@ const { Server } = require('socket.io');
 const session = require('express-session');
 const cors = require('cors');
 const nodemailer = require('nodemailer');
-const { saveOrder, getStats, getRecentOrders, clearAllOrders } = require('./dbs');
+const { saveOrder, getStats, getRecentOrders, clearAllOrders , recordVisit, getVisitorStats, cleanOldSessions } = require('./dbs');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const paypal = require('@paypal/checkout-server-sdk');
 const path = require('path');
@@ -178,6 +178,105 @@ app.post('/api/create-paypal-order', async (req, res) => {
             success: false,
             message: 'Erreur lors de la création de la commande PayPal',
             error: error.message
+        });
+    }
+});
+
+
+app.post('/api/visit', async (req, res) => {
+    try {
+        // Générer un ID de session unique s'il n'existe pas
+        let sessionId = req.session.visitorId;
+        if (!sessionId) {
+            sessionId = crypto.randomUUID();
+            req.session.visitorId = sessionId;
+        }
+        
+        // Obtenir l'IP du visiteur (en tenant compte des proxies)
+        const ipAddress = req.headers['x-forwarded-for'] 
+            ? req.headers['x-forwarded-for'].split(',')[0].trim()
+            : req.ip || req.connection.remoteAddress;
+        
+        const userAgent = req.headers['user-agent'] || 'Unknown';
+        
+        console.log('👥 Nouvelle visite:', { sessionId, ipAddress });
+        
+        // Enregistrer la visite
+        const result = await recordVisit(sessionId, ipAddress, userAgent);
+        
+        // Diffuser les nouvelles stats à tous les clients connectés
+        const visitorStats = await getVisitorStats();
+        io.emit('visitorUpdate', {
+            onlineVisitors: visitorStats.onlineVisitors,
+            todayVisits: visitorStats.todayVisits,
+            totalVisits: visitorStats.totalVisits
+        });
+        
+        res.json({
+            success: true,
+            sessionId,
+            isNewVisitor: result.isNewVisitor,
+            stats: visitorStats
+        });
+        
+    } catch (error) {
+        console.error('❌ Erreur enregistrement visite:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erreur enregistrement visite'
+        });
+    }
+});
+
+// 🆕 Route pour récupérer les stats visiteurs (publique)
+app.get('/api/visitor-stats', async (req, res) => {
+    try {
+        const stats = await getVisitorStats();
+        res.json({
+            success: true,
+            data: stats
+        });
+    } catch (error) {
+        console.error('❌ Erreur stats visiteurs:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erreur récupération stats'
+        });
+    }
+});
+
+// 🆕 Route admin pour stats visiteurs détaillées
+app.get('/api/admin/visitor-stats', validateAdminKey, async (req, res) => {
+    try {
+        const stats = await getVisitorStats();
+        res.json({
+            success: true,
+            data: stats
+        });
+    } catch (error) {
+        console.error('❌ Erreur stats visiteurs admin:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erreur récupération stats admin'
+        });
+    }
+});
+
+// 🆕 Route de maintenance pour nettoyer les anciennes sessions
+app.delete('/api/admin/clean-old-sessions', validateAdminKey, async (req, res) => {
+    try {
+        const daysOld = parseInt(req.query.days) || 30;
+        const result = await cleanOldSessions(daysOld);
+        
+        res.json({
+            success: true,
+            message: `Sessions de plus de ${daysOld} jours supprimées`
+        });
+    } catch (error) {
+        console.error('❌ Erreur nettoyage sessions:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erreur nettoyage sessions'
         });
     }
 });
@@ -1101,6 +1200,15 @@ io.on('connection', (socket) => {
         connectedAt: new Date(),
         sessionId: socket.handshake.sessionID
     });
+
+    getVisitorStats().then(stats => {
+        io.emit('visitorUpdate', {
+            onlineVisitors: stats.onlineVisitors,
+            todayVisits: stats.todayVisits,
+            totalVisits: stats.totalVisits,
+            connectedUsers: connectedUsers.size
+        });
+    });
     
     // Notifier tous les clients du nombre d'utilisateurs
     io.emit('userCount', connectedUsers.size);
@@ -1122,11 +1230,31 @@ io.on('connection', (socket) => {
         
         // Retirer l'utilisateur de la liste
         connectedUsers.delete(socket.id);
+
+        getVisitorStats().then(stats => {
+            io.emit('visitorUpdate', {
+                onlineVisitors: stats.onlineVisitors,
+                todayVisits: stats.todayVisits,
+                totalVisits: stats.totalVisits,
+                connectedUsers: connectedUsers.size
+            });
+        });
         
         // Notifier tous les clients du nouveau nombre d'utilisateurs
         io.emit('userCount', connectedUsers.size);
     });
 });
+
+
+// 🆕 Tâche de nettoyage automatique (lance une fois par jour)
+setInterval(async () => {
+    try {
+        await cleanOldSessions(30); // Nettoie les sessions de plus de 30 jours
+        console.log('🧹 Nettoyage automatique des sessions effectué');
+    } catch (error) {
+        console.error('❌ Erreur nettoyage automatique:', error);
+    }
+}, 24 * 60 * 60 * 1000); // Une fois par jour
 
 
 

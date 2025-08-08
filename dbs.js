@@ -300,10 +300,190 @@ async function clearAllOrders() {
     }
 }
 
+
+// Enregistrer une nouvelle visite
+async function recordVisit(sessionId, ipAddress, userAgent) {
+    try {
+        console.log('👥 [Supabase] Enregistrement visite:', { sessionId, ipAddress });
+        
+        const today = new Date().toISOString().split('T')[0];
+        
+        // 1. Vérifier si cette session existe déjà
+        const { data: existingSession } = await supabase
+            .from('visitor_sessions')
+            .select('*')
+            .eq('session_id', sessionId)
+            .single();
+
+        let isNewVisitor = false;
+        
+        if (existingSession) {
+            // Session existante, mettre à jour
+            await supabase
+                .from('visitor_sessions')
+                .update({
+                    last_visit: new Date().toISOString(),
+                    visit_count: existingSession.visit_count + 1
+                })
+                .eq('session_id', sessionId);
+        } else {
+            // Nouvelle session
+            await supabase
+                .from('visitor_sessions')
+                .insert([{
+                    session_id: sessionId,
+                    ip_address: ipAddress,
+                    user_agent: userAgent
+                }]);
+            isNewVisitor = true;
+        }
+
+        // 2. Mettre à jour les stats du jour
+        const { data: todayStats } = await supabase
+            .from('visitors')
+            .select('*')
+            .eq('visit_date', today)
+            .single();
+
+        if (todayStats) {
+            // Jour existant, incrémenter
+            await supabase
+                .from('visitors')
+                .update({
+                    total_visits: todayStats.total_visits + 1,
+                    unique_visitors: isNewVisitor ? todayStats.unique_visitors + 1 : todayStats.unique_visitors,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('visit_date', today);
+        } else {
+            // Premier visiteur du jour
+            await supabase
+                .from('visitors')
+                .insert([{
+                    visit_date: today,
+                    total_visits: 1,
+                    unique_visitors: 1
+                }]);
+        }
+
+        console.log('✅ [Supabase] Visite enregistrée');
+        return { success: true, isNewVisitor };
+
+    } catch (error) {
+        console.error('❌ [Supabase] Erreur enregistrement visite:', error.message);
+        return { success: false, error: error.message };
+    }
+}
+
+// Récupérer les statistiques de visiteurs
+async function getVisitorStats() {
+    try {
+        console.log('👥 [Supabase] Récupération stats visiteurs...');
+        
+        const today = new Date().toISOString().split('T')[0];
+        const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        
+        // Stats d'aujourd'hui
+        const { data: todayStats } = await supabase
+            .from('visitors')
+            .select('*')
+            .eq('visit_date', today)
+            .single();
+
+        // Stats d'hier
+        const { data: yesterdayStats } = await supabase
+            .from('visitors')
+            .select('*')
+            .eq('visit_date', yesterday)
+            .single();
+
+        // Total historique
+        const { data: totalStats } = await supabase
+            .from('visitors')
+            .select('total_visits, unique_visitors');
+
+        const totalVisits = totalStats?.reduce((sum, day) => sum + day.total_visits, 0) || 0;
+        const totalUniqueVisitors = totalStats?.reduce((sum, day) => sum + day.unique_visitors, 0) || 0;
+
+        // Visiteurs en ligne (approximation basée sur les 5 dernières minutes)
+        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+        const { count: onlineVisitors } = await supabase
+            .from('visitor_sessions')
+            .select('*', { count: 'exact', head: true })
+            .gte('last_visit', fiveMinutesAgo);
+
+        // Stats des 7 derniers jours
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+        const { data: weeklyStats } = await supabase
+            .from('visitors')
+            .select('visit_date, total_visits, unique_visitors')
+            .gte('visit_date', sevenDaysAgo)
+            .order('visit_date', { ascending: true });
+
+        const result = {
+            todayVisits: todayStats?.total_visits || 0,
+            todayUniqueVisitors: todayStats?.unique_visitors || 0,
+            yesterdayVisits: yesterdayStats?.total_visits || 0,
+            totalVisits,
+            totalUniqueVisitors,
+            onlineVisitors: onlineVisitors || 0,
+            weeklyStats: weeklyStats || [],
+            visitorsChange: yesterdayStats?.total_visits 
+                ? (((todayStats?.total_visits || 0) - yesterdayStats.total_visits) / yesterdayStats.total_visits * 100)
+                : 100
+        };
+
+        console.log('✅ [Supabase] Stats visiteurs:', {
+            todayVisits: result.todayVisits,
+            onlineVisitors: result.onlineVisitors,
+            totalVisits: result.totalVisits
+        });
+
+        return result;
+
+    } catch (error) {
+        console.error('❌ [Supabase] Erreur stats visiteurs:', error.message);
+        return {
+            todayVisits: 0,
+            todayUniqueVisitors: 0,
+            yesterdayVisits: 0,
+            totalVisits: 0,
+            totalUniqueVisitors: 0,
+            onlineVisitors: 0,
+            weeklyStats: [],
+            visitorsChange: 0
+        };
+    }
+}
+
+// Nettoyer les anciennes sessions (optionnel - pour maintenance)
+async function cleanOldSessions(daysOld = 30) {
+    try {
+        const cutoffDate = new Date(Date.now() - daysOld * 24 * 60 * 60 * 1000).toISOString();
+        
+        const { error } = await supabase
+            .from('visitor_sessions')
+            .delete()
+            .lt('last_visit', cutoffDate);
+
+        if (error) throw error;
+        
+        console.log('✅ [Supabase] Sessions anciennes nettoyées');
+        return { success: true };
+        
+    } catch (error) {
+        console.error('❌ [Supabase] Erreur nettoyage sessions:', error.message);
+        return { success: false, error: error.message };
+    }
+}
+
 module.exports = {
     saveOrder,
     getStats,
     getRecentOrders,
     clearAllOrders,
-    supabase // Export du client pour usage direct si besoin
+    recordVisit,
+    getVisitorStats,
+    cleanOldSessions,
+    supabase 
 };

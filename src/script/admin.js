@@ -25,7 +25,19 @@ var adminApp = new Vue({
             totalPages: 1,
             salesChart: null,
             productsChart: null,
-            loading: false
+            loading: false,
+
+
+            // 🆕 Stats visiteurs pour l'admin
+            visitorStats: {
+                todayVisits: 0,
+                todayUniqueVisitors: 0,
+                onlineVisitors: 0,
+                totalVisits: 0,
+                totalUniqueVisitors: 0,
+                visitorsChange: 0,
+                weeklyStats: []
+            }
         }
     },
 
@@ -48,6 +60,29 @@ var adminApp = new Vue({
                 this.showDashboard();
             }
         },
+
+
+        loadVisitorStats: function() {
+    fetch('/api/admin/visitor-stats', {
+        method: 'GET',
+        headers: {
+            'x-admin-key': sessionStorage.getItem('lv9_admin_key'),
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            this.visitorStats = data.data;
+            console.log('👥 Stats visiteurs admin chargées:', this.visitorStats);
+        } else {
+            console.error('❌ Erreur chargement stats visiteurs:', data.message);
+        }
+    })
+    .catch(error => {
+        console.error('❌ Erreur requête stats visiteurs:', error);
+    });
+},
 
         showPasswordPrompt: function() {
     // Vérifier blocage temporaire
@@ -93,16 +128,17 @@ var adminApp = new Vue({
 
         // === DONNÉES DASHBOARD ===
         loadDashboardData: function() {
-            this.loading = true;
-            
-            // Simuler chargement
-            setTimeout(() => {
-                this.loadStats();
-                this.loadRecentOrders();
-                this.initCharts();
-                this.loading = false;
-            }, 500);
-        },
+    this.loading = true;
+    
+    // Simuler chargement
+    setTimeout(() => {
+        this.loadStats();
+        this.loadRecentOrders();
+        this.loadVisitorStats(); // 🆕 Ajouter cette ligne
+        this.initCharts();
+        this.loading = false;
+    }, 500);
+},
 
 
         verifyPasswordWithServer: async function(password) {
@@ -352,18 +388,51 @@ var adminApp = new Vue({
 
         // === ACTIONS ===
         refreshData: function() {
-            console.log('🔄 Actualisation des données admin...');
-            this.loading = true;
-            
-            // Recharger stats et commandes
-            this.loadStats();
-            this.loadRecentOrders();
-            
-            setTimeout(() => {
-                this.loading = false;
-                console.log('✅ Données actualisées');
-            }, 1000);
-        },
+    console.log('🔄 Actualisation des données admin...');
+    this.loading = true;
+    
+    // Recharger stats et commandes
+    this.loadStats();
+    this.loadRecentOrders();
+    this.loadVisitorStats(); // 🆕 Ajouter cette ligne
+    
+    setTimeout(() => {
+        this.loading = false;
+        console.log('✅ Données actualisées');
+    }, 1000);
+},
+
+
+cleanOldSessions: function() {
+    const daysOld = prompt('Supprimer les sessions de plus de combien de jours ? (défaut: 30)', '30');
+    
+    if (daysOld === null) return;
+    
+    const days = parseInt(daysOld) || 30;
+    
+    if (confirm(`Supprimer les sessions de plus de ${days} jours ?`)) {
+        fetch(`/api/admin/clean-old-sessions?days=${days}`, {
+            method: 'DELETE',
+            headers: {
+                'x-admin-key': sessionStorage.getItem('lv9_admin_key'),
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(`✅ ${data.message}`);
+                this.loadVisitorStats(); // Recharger les stats
+            } else {
+                alert('❌ Erreur: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('❌ Erreur:', error);
+            alert('❌ Erreur de connexion');
+        });
+    }
+},
 
         loadOrdersPage: function(page) {
             this.currentPage = page;
