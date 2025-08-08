@@ -16,7 +16,6 @@ var app = new Vue({
                 city: '',
                 country: '',
                 notes: '',
-                cardHolderName : '',
                 paymentMethod: 'stripe',
             },
             
@@ -515,13 +514,7 @@ forceStripeInit: function() {
                 }
             }
 
-            // Validation spécifique pour Stripe
-            if (this.orderForm.paymentMethod === 'stripe') {
-                if (!this.orderForm.cardHolderName || this.orderForm.cardHolderName.trim() === '') {
-                    this.orderError = "Le nom du titulaire de la carte est obligatoire.";
-                    return false;
-                }
-            }
+          
 
             return true;
         },
@@ -628,10 +621,6 @@ forceStripeInit: function() {
             console.log('💳 Traitement paiement Stripe...');
             
             try {
-                // Vérifier que le nom du titulaire est rempli
-                if (!this.orderForm.cardHolderName || this.orderForm.cardHolderName.trim() === '') {
-                    throw new Error('Le nom du titulaire de la carte est obligatoire.');
-                }
                 
                 // 1. Créer le Payment Intent
                 const paymentIntentData = await this.createPaymentIntent();
@@ -643,7 +632,6 @@ forceStripeInit: function() {
                         payment_method: {
                             card: this.cardNumberElement,
                             billing_details: {
-                                name: this.orderForm.cardHolderName,
                                 email: this.orderForm.email,
                                 phone: this.orderForm.phone,
                                 address: {
@@ -674,7 +662,6 @@ forceStripeInit: function() {
                             chargeId: paymentIntent.charges.data[0]?.id,
                             cardLast4: paymentIntent.charges.data[0]?.payment_method_details?.card?.last4,
                             cardBrand: paymentIntent.charges.data[0]?.payment_method_details?.card?.brand,
-                            cardHolderName: this.orderForm.cardHolderName,
                             amount: paymentIntent.amount / 100,
                             currency: paymentIntent.currency.toUpperCase(),
                             status: 'succeeded'
@@ -1021,7 +1008,7 @@ async checkPayPalStatus(orderId) {
             }
 
             if (this.orderForm.paymentMethod === 'stripe') {
-                return !!this.cardNumberElement && !!this.orderForm.cardHolderName;
+                return !!this.cardNumberElement;
             }
 
             if (this.orderForm.paymentMethod === 'paypal') {
@@ -1060,11 +1047,6 @@ async checkPayPalStatus(orderId) {
             if (!this.isPaymentValid) {
                 if (!this.orderForm.paymentMethod) {
                     return "Veuillez sélectionner un mode de paiement";
-                }
-                if (this.orderForm.paymentMethod === 'stripe') {
-                    if (!this.orderForm.cardHolderName || this.orderForm.cardHolderName.trim().length < 2) {
-                        return "Nom du titulaire requis";
-                    }
                 }
             }
             
