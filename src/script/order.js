@@ -680,6 +680,31 @@ forceStripeInit: function() {
     console.log('🅿️ Traitement paiement PayPal...');
     
     try {
+        // 🧪 MODE SIMULATION POUR LOCAL
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            console.log('🧪 MODE SIMULATION PAYPAL LOCAL');
+            
+            // Simuler un délai de traitement PayPal
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            // Simuler un paiement PayPal réussi
+            await this.saveOrderToServer({
+                payment: {
+                    method: 'paypal',
+                    paypalOrderId: `FAKE-${Date.now()}`,
+                    payerId: 'FAKE-PAYER-123',
+                    captureId: `FAKE-CAPTURE-${Date.now()}`,
+                    amount: parseFloat(this.getCartTotal()),
+                    currency: 'EUR',
+                    status: 'completed'
+                }
+            });
+            
+            console.log('✅ Simulation PayPal terminée !');
+            return;
+        }
+        
+        // 🔴 MODE RÉEL PAYPAL (pour production)
         // 1. Créer la commande PayPal
         const response = await fetch('/api/create-paypal-order', {
             method: 'POST',

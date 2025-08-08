@@ -7,6 +7,9 @@ const nodemailer = require('nodemailer');
 const { saveOrder, getStats, getRecentOrders, clearAllOrders } = require('./dbs');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const paypal = require('@paypal/checkout-server-sdk');
+const path = require('path');
+const fs = require('fs').promises;
+const crypto = require('crypto');
 
 
 
@@ -88,6 +91,7 @@ app.use(cors());
 app.use(express.static('src/html'));
 app.use(express.static('src/style'));
 app.use(express.static('src/script'));
+app.use(express.static('src/docs'));
 app.use(express.static('src/img'));
 app.use(sessionMiddleware);
 app.use(express.json());
@@ -95,7 +99,9 @@ app.use(express.urlencoded({ extended: true }));
 io.engine.use(sessionMiddleware);
 
 // Variables globales
-let connectedUsers = new Map(); // Plus moderne que les arrays
+let connectedUsers = new Map(); 
+const downloadTokens = new Map();
+
 
 // Routes
 app.get('/', function(req, res) {
@@ -518,6 +524,109 @@ app.get('/api/users', function(req, res) {
 
 
 
+app.get('/download-ebook/:token', async (req, res) => {
+    try {
+        const { token } = req.params;
+        
+        // Vérifier si le token existe
+        const tokenData = downloadTokens.get(token);
+        if (!tokenData) {
+            return res.status(404).send(`
+                <!DOCTYPE html>
+                <html>
+                <head><title>Lien non valide</title></head>
+                <body style="font-family: Arial; text-align: center; margin-top: 50px;">
+                    <h2>❌ Lien de téléchargement non valide ou expiré</h2>
+                    <p>Ce lien n'existe pas ou a expiré.</p>
+                    <a href="/">Retour à l'accueil</a>
+                </body>
+                </html>
+            `);
+        }
+        
+        // Vérifier si le token a expiré
+        if (Date.now() > tokenData.expiresAt) {
+            downloadTokens.delete(token);
+            return res.status(410).send(`
+                <!DOCTYPE html>
+                <html>
+                <head><title>Lien expiré</title></head>
+                <body style="font-family: Arial; text-align: center; margin-top: 50px;">
+                    <h2>⏰ Lien de téléchargement expiré</h2>
+                    <p>Ce lien a expiré. Contactez-nous pour obtenir un nouveau lien.</p>
+                    <a href="/contact.html">Nous contacter</a>
+                </body>
+                </html>
+            `);
+        }
+        
+        // Limiter le nombre de téléchargements (optionnel)
+        if (tokenData.downloadCount >= 5) {
+            return res.status(429).send(`
+                <!DOCTYPE html>
+                <html>
+                <head><title>Limite atteinte</title></head>
+                <body style="font-family: Arial; text-align: center; margin-top: 50px;">
+                    <h2>⚠️ Limite de téléchargement atteinte</h2>
+                    <p>Vous avez déjà téléchargé ce fichier 5 fois.</p>
+                    <a href="/contact.html">Contactez-nous pour assistance</a>
+                </body>
+                </html>
+            `);
+        }
+        
+        const ebookPath = path.join(__dirname, 'src', 'docs', 'ebookfinal.pdf');
+        
+        // Vérifier si le fichier existe
+        try {
+            await fs.access(ebookPath);
+        } catch (error) {
+            console.error('❌ Fichier eBook introuvable:', ebookPath);
+            return res.status(404).send(`
+                <!DOCTYPE html>
+                <html>
+                <head><title>Fichier introuvable</title></head>
+                <body style="font-family: Arial; text-align: center; margin-top: 50px;">
+                    <h2>❌ Fichier temporairement indisponible</h2>
+                    <p>Contactez-nous pour assistance.</p>
+                    <a href="/contact.html">Nous contacter</a>
+                </body>
+                </html>
+            `);
+        }
+        
+        // Incrémenter le compteur de téléchargements
+        tokenData.downloadCount++;
+        tokenData.downloaded = true;
+        tokenData.lastDownloadAt = new Date().toISOString();
+        
+        console.log(`📚 Téléchargement eBook - Client: ${tokenData.customerName} (${tokenData.customerEmail})`);
+        
+        // Envoyer le fichier
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', 'attachment; filename="LV9-Code-Guide-Ultime.pdf"');
+        res.setHeader('Cache-Control', 'private, no-cache');
+        
+        res.sendFile(ebookPath);
+        
+    } catch (error) {
+        console.error('❌ Erreur téléchargement eBook:', error);
+        res.status(500).send(`
+            <!DOCTYPE html>
+            <html>
+            <head><title>Erreur</title></head>
+            <body style="font-family: Arial; text-align: center; margin-top: 50px;">
+                <h2>❌ Erreur serveur</h2>
+                <p>Une erreur s'est produite. Veuillez réessayer plus tard.</p>
+                <a href="/">Retour à l'accueil</a>
+            </body>
+            </html>
+        `);
+    }
+});
+
+
+
 app.delete('/api/admin/clear-orders', validateAdminKey, async function(req, res) {
     try {
         console.log('🗑️ SUPPRESSION DE TOUTES LES COMMANDES (Admin)');
@@ -734,53 +843,127 @@ app.post('/api/order', async (req, res) => {
         
         console.log('✅ Paiement accepté et commande sauvegardée !');
         
-        // ... TON CODE EMAIL EXISTANT (garde-le tel quel) ...
+       
         if (transporter) {
-            // Construction de la liste des produits pour l'email
-            let productsHtml = '';
+            // Vérifier si la commande contient un eBook
+            const hasEbook = orderData.products.some(product => 
+                product.type === 'ebook' || product.name.toLowerCase().includes('ebook')
+            );
             
+            let ebookSection = '';
+            let downloadToken = '';
+            
+            if (hasEbook) {
+                // Générer un token de téléchargement sécurisé
+                downloadToken = generateDownloadToken(orderData);
+                const downloadUrl = `${req.protocol}://${req.get('host')}/download-ebook/${downloadToken}`;
+                
+                ebookSection = `
+                    <div style="background: #e8f4fd; border: 2px solid #2196F3; padding: 1.5rem; border-radius: 10px; margin: 1.5rem 0;">
+                        <h3 style="color: #1565C0; margin: 0 0 1rem 0; display: flex; align-items: center;">
+                            📚 Votre eBook est prêt !
+                        </h3>
+                        <p style="margin: 0 0 1rem 0; color: #1565C0;">
+                            <strong>Téléchargez votre guide "LV9 Code - Guide Ultime du Succès" dès maintenant :</strong>
+                        </p>
+                        <div style="text-align: center; margin: 1.5rem 0;">
+                            <a href="${downloadUrl}" 
+                            style="background: #2196F3; 
+                                    color: white; 
+                                    padding: 15px 30px; 
+                                    text-decoration: none; 
+                                    border-radius: 8px; 
+                                    font-weight: bold; 
+                                    font-size: 1.1rem;
+                                    display: inline-block;">
+                                📥 TÉLÉCHARGER L'EBOOK MAINTENANT
+                            </a>
+                        </div>
+                        <div style="font-size: 0.9rem; color: #666; border-top: 1px solid #ddd; padding-top: 1rem; margin-top: 1rem;">
+                            <p><strong>⚠️ Important :</strong></p>
+                            <ul style="margin: 0; padding-left: 1.5rem;">
+                                <li>Ce lien est valide pendant <strong>7 jours</strong></li>
+                                <li>Maximum <strong>5 téléchargements</strong> autorisés</li>
+                                <li>Gardez ce lien précieusement !</li>
+                            </ul>
+                            <p style="margin: 0.5rem 0 0;">
+                                <em>En cas de problème, contactez-nous à lv9Dreams@gmail.com</em>
+                            </p>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Construction de la liste des produits pour l'email (garde ton code existant)
+            let productsHtml = '';
             if (orderData.products && orderData.products.length > 0) {
                 productsHtml = orderData.products.map((product, index) => {
+                    const isDigital = product.type === 'ebook' || product.name.toLowerCase().includes('ebook');
+                    const digitalBadge = isDigital ? '<div style="background: #4CAF50; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; display: inline-block; margin-bottom: 0.5rem;">📚 PRODUIT NUMÉRIQUE</div>' : '';
+                    
                     return `
                         <div style="margin-bottom: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 8px;">
+                            ${digitalBadge}
                             <p><strong>Produit ${index + 1} :</strong> ${product.name}</p>
                             <p><strong>Prix unitaire :</strong> ${product.price}€</p>
                             <p><strong>Quantité :</strong> ${product.quantity}</p>
                             <p><strong>Sous-total :</strong> ${(product.price * product.quantity).toFixed(2)}€</p>
+                            ${isDigital ? '<p style="color: #4CAF50; font-weight: bold;">✅ Téléchargement disponible immédiatement ci-dessus</p>' : ''}
                         </div>
                     `;
                 }).join('');
             }
             
-            // Section paiement pour l'email
-            let paymentHtml = '';
-            if (orderData.payment) {
-                let paymentMethod = 'Inconnu';
-                if (orderData.payment.method === 'stripe') {
-                    paymentMethod = 'Stripe (Carte bancaire)';
-                } else if (orderData.payment.method === 'card') {
-                    paymentMethod = 'Carte bancaire';
-                } else if (orderData.payment.method === 'paypal') {
-                    paymentMethod = 'PayPal';
-                }
-                
-                paymentHtml = `
-                    <hr>
-                    <h3>💳 Informations de paiement :</h3>
-                    <div style="background: #e8f5e8; padding: 1rem; border-radius: 8px;">
-                        <p><strong>Mode de paiement :</strong> ${paymentMethod}</p>
-                        ${orderData.payment.cardLast4 ? `
-                            <p><strong>Type de carte :</strong> ${orderData.payment.cardBrand || 'Non détecté'}</p>
-                            <p><strong>Numéro de carte :</strong> **** **** **** ${orderData.payment.cardLast4}</p>
-                        ` : ''}
-                        ${orderData.payment.stripePaymentIntentId ? `
-                            <p><strong>ID Transaction Stripe :</strong> ${orderData.payment.stripePaymentIntentId}</p>
-                        ` : ''}
-                        <p style="color: #28a745; font-weight: bold; font-size: 1.1rem;">✅ PAIEMENT CONFIRMÉ</p>
+            // Email au client
+            const customerEmail = {
+                from: 'lv9Dreams@gmail.com',
+                to: orderData.customer.email,
+                subject: `✅ Commande confirmée ${orderId} - LV9Dreams`,
+                html: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                        <div style="background: #2c3e50; padding: 2rem; text-align: center; border-radius: 10px 10px 0 0;">
+                            <h1 style="color: #d4af37; margin: 0; font-size: 2rem;">LV9Dreams</h1>
+                            <p style="color: white; margin: 0.5rem 0 0;">Commande confirmée !</p>
+                        </div>
+                        
+                        <div style="padding: 2rem; background: white; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                            <h2 style="color: #2c3e50;">Bonjour ${orderData.customer.firstName},</h2>
+                            <p>Merci pour votre commande ! Voici les détails :</p>
+                            
+                            <div style="background: #d4edda; border: 1px solid #c3e6cb; padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+                                <p style="margin: 0; color: #155724;"><strong>✅ N° commande :</strong> ${orderId}</p>
+                                <p style="margin: 0; color: #155724;"><strong>💰 Montant :</strong> ${orderData.total}€</p>
+                                <p style="margin: 0; color: #155724;"><strong>📅 Date :</strong> ${new Date().toLocaleString('fr-FR')}</p>
+                            </div>
+                            
+                            ${ebookSection}
+                            
+                            <h3>📦 Produits commandés :</h3>
+                            ${productsHtml}
+                            
+                            <div style="border-top: 1px solid #ddd; padding-top: 1rem; margin-top: 1rem;">
+                                <p>Questions ? Contactez-nous à <a href="mailto:lv9Dreams@gmail.com">lv9Dreams@gmail.com</a></p>
+                                <p style="color: #666; font-size: 0.9rem;">
+                                    Merci de votre confiance !<br>
+                                    L'équipe LV9Dreams
+                                </p>
+                            </div>
+                        </div>
                     </div>
-                `;
-            }
+                `
+            };
             
+            try {
+                await transporter.sendMail(customerEmail);
+                console.log('📧 Email de confirmation envoyé au client');
+                if (hasEbook) {
+                    console.log('📚 Token de téléchargement eBook généré:', downloadToken);
+                }
+            } catch (emailError) {
+                console.error('❌ Erreur envoi email client:', emailError);
+            }
+
+            // Email admin (à ajouter après l'email client)
             const adminEmail = {
                 from: 'lv9Dreams@gmail.com',
                 to: 'lv9Dreams@gmail.com',
@@ -793,46 +976,22 @@ app.post('/api/order', async (req, res) => {
                         <p style="margin: 0.5rem 0 0; color: #155724;">💾 Automatiquement sauvegardée en base de données</p>
                     </div>
                     
-                    <hr>
                     <h3>👤 Client :</h3>
                     <p><strong>Nom :</strong> ${orderData.customer.firstName} ${orderData.customer.lastName}</p>
                     <p><strong>Email :</strong> ${orderData.customer.email}</p>
                     <p><strong>Téléphone :</strong> ${orderData.customer.phone}</p>
                     <p><strong>Adresse :</strong> ${orderData.customer.address}, ${orderData.customer.postalCode} ${orderData.customer.city}, ${orderData.customer.country}</p>
-                    ${orderData.customer.notes ? `<p><strong>Notes :</strong> ${orderData.customer.notes}</p>` : ''}
                     
-                    ${paymentHtml}
-                    
-                    <hr>
                     <h3>📦 Produits commandés :</h3>
                     ${productsHtml}
                     
-                    <hr>
-                    <div style="background: #e8f5e8; padding: 1rem; border-radius: 8px; margin-top: 1rem;">
-                        <h3>💰 Récapitulatif financier :</h3>
-                        <p><strong>Nombre total d'articles :</strong> ${totalQuantity}</p>
-                        <p><strong>Sous-total :</strong> ${orderData.subtotal || orderData.total}€</p>
-                        <p><strong>Livraison :</strong> ${orderData.shipping || 0}€ ${orderData.shipping === 0 ? '(Gratuite)' : ''}</p>
-                        <p style="font-size: 1.3rem; color: #28a745;"><strong>💰 TOTAL ENCAISSÉ :</strong> ${orderData.total}€</p>
-                    </div>
-                    
-                    <hr>
-                    <p><em>Commande passée le ${new Date().toLocaleString('fr-FR')}</em></p>
-                    
-                    <div style="margin-top: 2rem; padding: 1rem; background: #d1ecf1; border: 1px solid #bee5eb; border-radius: 8px;">
-                        <h4>📊 Dashboard Admin :</h4>
-                        <p>Cette commande est maintenant visible dans votre <a href="${req.protocol}://${req.get('host')}/admin" style="color: #0c5460; font-weight: bold;">tableau de bord admin</a></p>
-                        <p>Consultez vos statistiques en temps réel !</p>
-                    </div>
+                    <h3>💰 TOTAL ENCAISSÉ : ${orderData.total}€</h3>
+                    ${hasEbook ? '<p style="color: #2196F3; font-weight: bold;">📚 Commande contient un eBook - Token généré !</p>' : ''}
                 `
             };
-            
-            try {
-                await transporter.sendMail(adminEmail);
-                console.log('📧 Email de notification envoyé');
-            } catch (emailError) {
-                console.error('❌ Erreur envoi email:', emailError);
-            }
+
+            await transporter.sendMail(adminEmail);
+            console.log('📧 Email admin envoyé');
         }
         
         // Réponse de succès
@@ -862,6 +1021,32 @@ app.post('/api/order', async (req, res) => {
             error: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }
+});
+
+
+setInterval(() => {
+    const now = Date.now();
+    for (const [token, data] of downloadTokens.entries()) {
+        if (now > data.expiresAt) {
+            downloadTokens.delete(token);
+        }
+    }
+    console.log(`🧹 Nettoyage tokens eBook: ${downloadTokens.size} actifs`);
+}, 60 * 60 * 1000); // 1 heure
+
+// Route admin pour voir les téléchargements (optionnel)
+app.get('/api/admin/ebook-downloads', validateAdminKey, (req, res) => {
+    const downloads = Array.from(downloadTokens.entries()).map(([token, data]) => ({
+        token,
+        ...data,
+        isExpired: Date.now() > data.expiresAt
+    }));
+    
+    res.json({
+        success: true,
+        activeTokens: downloads.length,
+        downloads: downloads
+    });
 });
 
 
@@ -942,6 +1127,45 @@ io.on('connection', (socket) => {
         io.emit('userCount', connectedUsers.size);
     });
 });
+
+
+
+function generateDownloadToken(orderData) {
+    const token = crypto.randomBytes(32).toString('hex');
+    const expirationTime = Date.now() + (7 * 24 * 60 * 60 * 1000); // 7 jours
+    
+    downloadTokens.set(token, {
+        orderId: orderData.orderId,
+        customerEmail: orderData.customer.email,
+        customerName: `${orderData.customer.firstName} ${orderData.customer.lastName}`,
+        expiresAt: expirationTime,
+        downloaded: false,
+        downloadCount: 0
+    });
+    
+    return token;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
