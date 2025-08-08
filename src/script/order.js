@@ -690,32 +690,54 @@ forceStripeInit: function() {
 
         // === MÉTHODE PAYPAL ===
          async processPayPalPayment() {
-            console.log('🅿️ Traitement paiement PayPal...');
-            
-            // Pour l'instant, on simule PayPal
-            // Tu pourras intégrer l'API PayPal plus tard si besoin
-            try {
-                // Simulation d'un délai de traitement PayPal
-                await new Promise(resolve => setTimeout(resolve, 2000));
-                
-                // Sauvegarder comme paiement PayPal simulé
-                await this.saveOrderToServer({
-                    payment: {
-                        method: 'paypal',
-                        paypalOrderId: 'PAYPAL-' + Date.now(),
-                        amount: this.getCartTotal(),
-                        currency: 'EUR',
-                        status: 'completed'
-                    }
-                });
-                
-                console.log('✅ Paiement PayPal simulé réussi !');
-                
-            } catch (error) {
-                console.error('❌ Erreur processPayPalPayment:', error);
-                throw error;
-            }
-        },
+    console.log('🅿️ Traitement paiement PayPal...');
+    
+    try {
+        // 1. Créer la commande PayPal
+        const response = await fetch('/api/create-paypal-order', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                amount: parseFloat(this.getCartTotal()),
+                currency: 'EUR',
+                orderData: {
+                    customer: this.orderForm,
+                    products: this.cartItems
+                }
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (!data.success) {
+            throw new Error(data.message || 'Erreur création commande PayPal');
+        }
+        
+        console.log('✅ Commande PayPal créée:', data.orderId);
+        
+        // 2. Sauvegarder temporairement les données de commande
+        sessionStorage.setItem('lv9_paypal_temp_order', JSON.stringify(data.tempOrderData));
+        
+        // 3. Rediriger vers PayPal pour le paiement
+        console.log('🔄 Redirection vers PayPal...');
+        window.location.href = data.approvalUrl;
+        
+    } catch (error) {
+        console.error('❌ Erreur processPayPalPayment:', error);
+        throw error;
+    }
+},
+
+async checkPayPalStatus(orderId) {
+    try {
+        const response = await fetch(`/api/paypal-order-status/${orderId}`);
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('❌ Erreur vérification PayPal:', error);
+        return { success: false, error: error.message };
+    }
+},
 
         // === MÉTHODE HELPER: CRÉER ORDRE PAYPAL ===
         async createPayPalOrder() {

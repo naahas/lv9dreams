@@ -10,6 +10,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@paypal/checkout-server-sdk": "^1.0.3",
     "@supabase/supabase-js": "^2.53.0",
     "better-sqlite3": "^12.2.0",
     "cors": "^2.8.5",

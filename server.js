@@ -6,6 +6,8 @@ const cors = require('cors');
 const nodemailer = require('nodemailer');
 const { saveOrder, getStats, getRecentOrders, clearAllOrders } = require('./dbs');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const paypal = require('@paypal/checkout-server-sdk');
+
 
 
 require('dotenv').config();
@@ -25,6 +27,22 @@ const io = new Server(server, {
         allowedHeaders: ['Content-Type']
     }
 });
+
+
+let environment;
+if (process.env.PAYPAL_MODE === 'live') {
+    environment = new paypal.core.LiveEnvironment(
+        process.env.PAYPAL_CLIENT_ID,
+        process.env.PAYPAL_CLIENT_SECRET
+    );
+} else {
+    environment = new paypal.core.SandboxEnvironment(
+        process.env.PAYPAL_CLIENT_ID,
+        process.env.PAYPAL_CLIENT_SECRET
+    );
+}
+
+const paypalClient = new paypal.core.PayPalHttpClient(environment);
 
 
 //mail configuration
@@ -95,6 +113,285 @@ app.get('/api/stripe-config', (req, res) => {
         success: true,
         publishableKey: process.env.STRIPE_PUBLISHABLE_KEY
     });
+});
+
+app.post('/api/create-paypal-order', async (req, res) => {
+    try {
+        const { amount, currency = 'EUR', orderData } = req.body;
+        
+        console.log('🅿️ Création commande PayPal:', { amount, currency });
+        
+        const request = new paypal.orders.OrdersCreateRequest();
+        request.prefer("return=representation");
+        request.requestBody({
+            intent: 'CAPTURE',
+            purchase_units: [{
+                amount: {
+                    currency_code: currency,
+                    value: amount.toString()
+                },
+                description: `Commande LV9Dreams - ${orderData?.products?.length || 1} produit(s)`,
+                custom_id: `LV9-${Date.now()}`,
+                invoice_id: `INV-${Date.now()}-${Math.floor(Math.random() * 1000)}`
+            }],
+            application_context: {
+                brand_name: 'LV9Dreams',
+                landing_page: 'LOGIN',
+                user_action: 'PAY_NOW',
+                return_url: `${req.protocol}://${req.get('host')}/paypal-success`,
+                cancel_url: `${req.protocol}://${req.get('host')}/paypal-cancel`
+            }
+        });
+        
+        const order = await paypalClient.execute(request);
+        
+        console.log('✅ Commande PayPal créée:', order.result.id);
+        
+        // Sauvegarder temporairement les données de commande
+        const tempOrderData = {
+            paypalOrderId: order.result.id,
+            customer: orderData.customer,
+            products: orderData.products,
+            total: amount,
+            timestamp: Date.now()
+        };
+        
+        // Tu peux utiliser Redis, une DB temporaire, ou simplement le faire côté client
+        // Pour simplifier, on va stocker côté client avec sessionStorage
+        
+        res.json({
+            success: true,
+            orderId: order.result.id,
+            approvalUrl: order.result.links.find(link => link.rel === 'approve').href,
+            tempOrderData: tempOrderData
+        });
+        
+    } catch (error) {
+        console.error('❌ Erreur création PayPal:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erreur lors de la création de la commande PayPal',
+            error: error.message
+        });
+    }
+});
+
+// Route pour capturer le paiement PayPal
+app.post('/api/capture-paypal-order', async (req, res) => {
+    try {
+        const { orderId, payerId } = req.body;
+        
+        console.log('🅿️ Capture paiement PayPal:', { orderId, payerId });
+        
+        const request = new paypal.orders.OrdersCaptureRequest(orderId);
+        request.requestBody({});
+        
+        const capture = await paypalClient.execute(request);
+        
+        console.log('✅ Paiement PayPal capturé:', capture.result.status);
+        
+        if (capture.result.status === 'COMPLETED') {
+            const captureDetails = capture.result.purchase_units[0].payments.captures[0];
+            
+            res.json({
+                success: true,
+                status: 'completed',
+                captureId: captureDetails.id,
+                amount: captureDetails.amount.value,
+                currency: captureDetails.amount.currency_code,
+                paypalOrderId: orderId
+            });
+        } else {
+            throw new Error('Paiement non complété: ' + capture.result.status);
+        }
+        
+    } catch (error) {
+        console.error('❌ Erreur capture PayPal:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erreur lors de la capture du paiement',
+            error: error.message
+        });
+    }
+});
+
+// Route pour les pages de retour PayPal
+app.get('/paypal-success', (req, res) => {
+    const { token, PayerID } = req.query;
+    
+    res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Paiement PayPal - Traitement</title>
+            <style>
+                body { 
+                    font-family: Arial, sans-serif; 
+                    display: flex; 
+                    justify-content: center; 
+                    align-items: center; 
+                    min-height: 100vh; 
+                    margin: 0;
+                    background: #f8f9fa;
+                }
+                .container { 
+                    text-align: center; 
+                    padding: 2rem;
+                    background: white;
+                    border-radius: 8px;
+                    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                }
+                .spinner {
+                    border: 4px solid #f3f3f3;
+                    border-top: 4px solid #0070ba;
+                    border-radius: 50%;
+                    width: 40px;
+                    height: 40px;
+                    animation: spin 1s linear infinite;
+                    margin: 0 auto 1rem;
+                }
+                @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="spinner"></div>
+                <h2>🅿️ Finalisation du paiement PayPal...</h2>
+                <p>Veuillez patienter pendant que nous traitons votre paiement.</p>
+            </div>
+            
+            <script>
+                // Finaliser le paiement
+                async function finalizePayment() {
+                    try {
+                        // Récupérer les données de commande temporaires
+                        const tempData = sessionStorage.getItem('lv9_paypal_temp_order');
+                        if (!tempData) {
+                            throw new Error('Données de commande introuvables');
+                        }
+                        
+                        const orderData = JSON.parse(tempData);
+                        
+                        // Capturer le paiement
+                        const response = await fetch('/api/capture-paypal-order', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                orderId: '${token}',
+                                payerId: '${PayerID}'
+                            })
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            // Sauvegarder la commande finale
+                            const finalOrderData = {
+                                customer: orderData.customer,
+                                products: orderData.products,
+                                subtotal: orderData.total,
+                                shipping: 0,
+                                total: orderData.total,
+                                payment: {
+                                    method: 'paypal',
+                                    paypalOrderId: '${token}',
+                                    payerId: '${PayerID}',
+                                    captureId: result.captureId,
+                                    amount: result.amount,
+                                    currency: result.currency,
+                                    status: 'completed'
+                                },
+                                orderDate: new Date().toISOString()
+                            };
+                            
+                            const saveResponse = await fetch('/api/order', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(finalOrderData)
+                            });
+                            
+                            const saveResult = await saveResponse.json();
+                            
+                            if (saveResult.success) {
+                                // Nettoyer et rediriger
+                                sessionStorage.removeItem('lv9_paypal_temp_order');
+                                localStorage.removeItem('lv9dreams_cart');
+                                localStorage.removeItem('lv9dreams_cart_count');
+                                
+                                alert('✅ Paiement PayPal réussi ! Commande confirmée.');
+                                window.location.href = '/';
+                            } else {
+                                throw new Error('Erreur sauvegarde: ' + saveResult.message);
+                            }
+                        } else {
+                            throw new Error('Erreur capture: ' + result.message);
+                        }
+                        
+                    } catch (error) {
+                        console.error('Erreur finalisation PayPal:', error);
+                        alert('❌ Erreur lors de la finalisation: ' + error.message);
+                        window.location.href = '/';
+                    }
+                }
+                
+                // Lancer la finalisation
+                finalizePayment();
+            </script>
+        </body>
+        </html>
+    `);
+});
+
+app.get('/paypal-cancel', (req, res) => {
+    res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Paiement PayPal - Annulé</title>
+            <style>
+                body { 
+                    font-family: Arial, sans-serif; 
+                    display: flex; 
+                    justify-content: center; 
+                    align-items: center; 
+                    min-height: 100vh; 
+                    margin: 0;
+                    background: #f8f9fa;
+                }
+                .container { 
+                    text-align: center; 
+                    padding: 2rem;
+                    background: white;
+                    border-radius: 8px;
+                    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h2>❌ Paiement PayPal annulé</h2>
+                <p>Vous avez annulé le paiement. Aucun montant n'a été débité.</p>
+                <button onclick="window.location.href='/'" style="
+                    background: #0070ba; 
+                    color: white; 
+                    border: none; 
+                    padding: 1rem 2rem; 
+                    border-radius: 4px; 
+                    cursor: pointer;
+                    font-size: 1rem;
+                ">Retour à la boutique</button>
+            </div>
+            
+            <script>
+                // Nettoyer les données temporaires
+                sessionStorage.removeItem('lv9_paypal_temp_order');
+            </script>
+        </body>
+        </html>
+    `);
 });
 
 
