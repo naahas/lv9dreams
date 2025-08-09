@@ -394,36 +394,60 @@ forceStripeInit: function() {
         },
 
         async createPaymentIntent() {
-            try {
-                const response = await fetch('/api/create-payment-intent', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        amount: parseFloat(this.getCartTotal()),
-                        currency: 'eur',
-                        orderData: {
-                            customer: this.orderForm,
-                            products: this.cartItems
-                        }
-                    })
-                });
-                
-                const data = await response.json();
-                
-                if (!data.success) {
-                    throw new Error(data.message || 'Erreur création Payment Intent');
+    try {
+        console.log('💳 Création Payment Intent - Données envoyées:', {
+            amount: parseFloat(this.getCartTotal()),
+            currency: 'eur',
+            customerEmail: this.orderForm.email,
+            productsCount: this.cartItems.length
+        });
+        
+        const response = await fetch('/api/create-payment-intent', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                amount: parseFloat(this.getCartTotal()),
+                currency: 'eur',
+                orderData: {
+                    customer: this.orderForm,
+                    products: this.cartItems
                 }
-                
-                this.paymentIntentClientSecret = data.clientSecret;
-                console.log('✅ Payment Intent créé');
-                
-                return data;
-                
-            } catch (error) {
-                console.error('❌ Erreur Payment Intent:', error);
-                throw error;
-            }
-        },
+            })
+        });
+        
+        // VÉRIFIER LE STATUT HTTP
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('❌ Erreur HTTP:', response.status, errorText);
+            throw new Error(`Erreur serveur (${response.status}): ${errorText}`);
+        }
+        
+        const data = await response.json();
+        console.log('📡 Réponse serveur Payment Intent:', data);
+        
+        if (!data.success) {
+            console.error('❌ Échec Payment Intent:', data);
+            throw new Error(data.message || 'Erreur lors de la création du paiement');
+        }
+        
+        this.paymentIntentClientSecret = data.clientSecret;
+        console.log('✅ Payment Intent créé avec succès');
+        
+        return data;
+        
+    } catch (error) {
+        console.error('❌ Erreur createPaymentIntent complète:', error);
+        
+        // Messages d'erreur plus spécifiques
+        if (error.message.includes('500')) {
+            throw new Error('Erreur serveur. Veuillez réessayer dans quelques instants.');
+        } else if (error.message.includes('network')) {
+            throw new Error('Problème de connexion. Vérifiez votre internet.');
+        } else {
+            throw error;
+        }
+    }
+},
 
 
         // NOUVEAU : Formater le numéro de carte

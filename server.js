@@ -103,6 +103,23 @@ let connectedUsers = new Map();
 const downloadTokens = new Map();
 
 
+const originalConsoleLog = console.log;
+const originalConsoleError = console.error;
+
+console.log = (...args) => {
+    originalConsoleLog('[LOG]', new Date().toISOString(), ...args);
+};
+
+console.error = (...args) => {
+    originalConsoleError('[ERROR]', new Date().toISOString(), ...args);
+};
+
+console.log('🚀 Serveur LV9Dreams démarré');
+console.log('🔧 Environment:', process.env.NODE_ENV);
+console.log('💳 Stripe configuré:', !!process.env.STRIPE_SECRET_KEY);
+console.log('📧 Email configuré:', !!process.env.SMTP_PASS);
+console.log('💾 Supabase configuré:', !!process.env.SUPABASE_URL);
+
 // Routes
 app.get('/', function(req, res) {
     res.sendFile(__dirname + '/src/html/home.html');
@@ -501,39 +518,174 @@ app.get('/paypal-cancel', (req, res) => {
 
 
 app.post('/api/create-payment-intent', async (req, res) => {
+    const startTime = Date.now();
+    
     try {
         const { amount, currency = 'eur', orderData } = req.body;
         
-        console.log('💳 Création Payment Intent:', { amount, currency });
+        console.log('💳 [STRIPE] === DÉBUT CREATE-PAYMENT-INTENT ===');
+        console.log('💰 [STRIPE] Montant reçu:', amount, currency);
+        console.log('📦 [STRIPE] Customer email:', orderData?.customer?.email);
+        console.log('📦 [STRIPE] Products count:', orderData?.products?.length);
         
-        // Créer le Payment Intent chez Stripe
-        const paymentIntent = await stripe.paymentIntents.create({
-            amount: Math.round(amount * 100), // Stripe utilise les centimes
-            currency: currency,
-            payment_method_types: ['card'],
-            metadata: {
-                customer_email: orderData?.customer?.email || '',
-                customer_name: `${orderData?.customer?.firstName || ''} ${orderData?.customer?.lastName || ''}`.trim(),
-                products_count: orderData?.products?.length || 0
-            }
-        });
+        // VÉRIFICATIONS DÉTAILLÉES
+        console.log('🔍 [STRIPE] Vérifications...');
         
-        console.log('✅ Payment Intent créé:', paymentIntent.id);
+        if (!process.env.STRIPE_SECRET_KEY) {
+            console.error('❌ [STRIPE] STRIPE_SECRET_KEY manquante !');
+            return res.status(500).json({
+                success: false,
+                message: 'Configuration Stripe manquante'
+            });
+        }
+        console.log('✅ [STRIPE] Clé secrète trouvée:', process.env.STRIPE_SECRET_KEY.substring(0, 7) + '...');
+        
+        if (!amount || isNaN(amount) || amount <= 0) {
+            console.error('❌ [STRIPE] Montant invalide:', amount);
+            return res.status(400).json({
+                success: false,
+                message: 'Montant invalide'
+            });
+        }
+        console.log('✅ [STRIPE] Montant valide:', amount);
+        
+        if (!orderData || !orderData.customer || !orderData.products) {
+            console.error('❌ [STRIPE] Données commande incomplètes');
+            return res.status(400).json({
+                success: false,
+                message: 'Données de commande manquantes'
+            });
+        }
+        console.log('✅ [STRIPE] Données commande complètes');
+        
+        // CALCUL MONTANT
+        const amountInCents = Math.round(parseFloat(amount) * 100);
+        console.log('💰 [STRIPE] Conversion:', amount, '€ =', amountInCents, 'centimes');
+        
+        // TENTATIVE CRÉATION PAYMENT INTENT AVEC GESTION D'ERREUR DÉTAILLÉE
+        console.log('🔄 [STRIPE] Création Payment Intent...');
+        
+        let paymentIntent;
+        try {
+            paymentIntent = await stripe.paymentIntents.create({
+                amount: amountInCents,
+                currency: currency.toLowerCase(),
+                payment_method_types: ['card'],
+                metadata: {
+                    customer_email: orderData?.customer?.email || '',
+                    customer_name: `${orderData?.customer?.firstName || ''} ${orderData?.customer?.lastName || ''}`.trim(),
+                    products_count: orderData?.products?.length || 0,
+                    order_source: 'lv9dreams_website',
+                    timestamp: new Date().toISOString()
+                },
+                description: `Commande LV9Dreams - ${orderData?.products?.length || 0} produit(s) - ${amount}€`
+            });
+            
+            console.log('✅ [STRIPE] Payment Intent créé avec succès !');
+            console.log('✅ [STRIPE] ID:', paymentIntent.id);
+            console.log('✅ [STRIPE] Statut:', paymentIntent.status);
+            
+        } catch (stripeError) {
+            console.error('❌ [STRIPE] === ERREUR STRIPE DÉTAILLÉE ===');
+            console.error('❌ [STRIPE] Type:', stripeError.type);
+            console.error('❌ [STRIPE] Code:', stripeError.code);
+            console.error('❌ [STRIPE] Message:', stripeError.message);
+            console.error('❌ [STRIPE] Decline code:', stripeError.decline_code);
+            console.error('❌ [STRIPE] Param:', stripeError.param);
+            console.error('❌ [STRIPE] Request ID:', stripeError.request_id);
+            
+            // LOG COMPLET DE L'ERREUR (sans les propriétés undefined)
+            const errorInfo = {
+                type: stripeError.type,
+                code: stripeError.code,
+                message: stripeError.message,
+                param: stripeError.param,
+                request_id: stripeError.request_id
+            };
+            console.error('❌ [STRIPE] Erreur complète:', JSON.stringify(errorInfo, null, 2));
+            
+            // RÉPONSE D'ERREUR CLAIRE
+            return res.status(500).json({
+                success: false,
+                message: 'Erreur Stripe: ' + stripeError.message,
+                error_type: stripeError.type,
+                error_code: stripeError.code,
+                stripe_request_id: stripeError.request_id
+            });
+        }
+        
+        // SUCCÈS
+        const endTime = Date.now();
+        console.log('✅ [STRIPE] Durée totale:', endTime - startTime, 'ms');
         
         res.json({
             success: true,
             clientSecret: paymentIntent.client_secret,
-            paymentIntentId: paymentIntent.id
+            paymentIntentId: paymentIntent.id,
+            amount: amount,
+            currency: currency
+        });
+        
+        console.log('✅ [STRIPE] === FIN CREATE-PAYMENT-INTENT (SUCCÈS) ===');
+        
+    } catch (error) {
+        const endTime = Date.now();
+        console.error('❌ [STRIPE] === ERREUR GÉNÉRALE ===');
+        console.error('❌ [STRIPE] Message:', error.message);
+        console.error('❌ [STRIPE] Stack:', error.stack);
+        console.error('❌ [STRIPE] Durée avant erreur:', endTime - startTime, 'ms');
+        
+        res.status(500).json({
+            success: false,
+            message: 'Erreur interne serveur',
+            error: error.message,
+            timestamp: new Date().toISOString()
+        });
+    }
+});
+
+
+app.get('/api/test-stripe-connection', validateAdminKey, async (req, res) => {
+    try {
+        console.log('🧪 Test connexion Stripe...');
+        
+        // Test simple : lister les méthodes de paiement (ne coûte rien)
+        const paymentMethods = await stripe.paymentMethods.list({
+            customer: 'cus_test', // Customer qui n'existe pas, mais ça teste la connexion
+            type: 'card'
+        });
+        
+        res.json({
+            success: true,
+            message: 'Stripe fonctionne !',
+            stripe_api_version: stripe._api.version,
+            test_mode: process.env.STRIPE_SECRET_KEY.includes('sk_test')
         });
         
     } catch (error) {
-        console.error('❌ Erreur Payment Intent:', error);
-        res.status(500).json({
+        console.error('❌ Test Stripe échoué:', error.message);
+        res.json({
             success: false,
-            message: 'Erreur lors de la création du paiement',
-            error: error.message
+            message: 'Stripe ne fonctionne pas',
+            error: error.message,
+            stripe_configured: !!process.env.STRIPE_SECRET_KEY
         });
     }
+});
+
+
+app.get('/api/debug/stripe-config', validateAdminKey, (req, res) => {
+    res.json({
+        success: true,
+        debug: {
+            stripeSecretKeyExists: !!process.env.STRIPE_SECRET_KEY,
+            stripeSecretKeyPrefix: process.env.STRIPE_SECRET_KEY ? process.env.STRIPE_SECRET_KEY.substring(0, 7) + '...' : 'Missing',
+            stripePublishableKeyExists: !!process.env.STRIPE_PUBLISHABLE_KEY,
+            stripePublishableKeyPrefix: process.env.STRIPE_PUBLISHABLE_KEY ? process.env.STRIPE_PUBLISHABLE_KEY.substring(0, 7) + '...' : 'Missing',
+            nodeEnv: process.env.NODE_ENV,
+            herokuSlug: process.env.HEROKU_SLUG_DESCRIPTION || 'Not on Heroku'
+        }
+    });
 });
 
 
