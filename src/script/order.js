@@ -642,62 +642,138 @@ forceStripeInit: function() {
 
 
         async processStripePayment() {
-            console.log('💳 Traitement paiement Stripe...');
-            
-            try {
-                
-                // 1. Créer le Payment Intent
-                const paymentIntentData = await this.createPaymentIntent();
-                
-                // 2. Confirmer le paiement avec Stripe
-                const { error, paymentIntent } = await this.stripe.confirmCardPayment(
-                    this.paymentIntentClientSecret,
-                    {
-                        payment_method: {
-                            card: this.cardNumberElement,
-                            billing_details: {
-                                email: this.orderForm.email,
-                                phone: this.orderForm.phone,
-                                address: {
-                                    line1: this.orderForm.address,
-                                    city: this.orderForm.city,
-                                    postal_code: this.orderForm.postalCode,
-                                    country: this.orderForm.country === 'France' ? 'FR' : 'FR'
-                                }
-                            }
+    console.log('💳 Traitement paiement Stripe...');
+    
+    try {
+        // 1. Créer le Payment Intent
+        const paymentIntentData = await this.createPaymentIntent();
+        
+        // 2. Confirmer le paiement avec Stripe
+        const { error, paymentIntent } = await this.stripe.confirmCardPayment(
+            this.paymentIntentClientSecret,
+            {
+                payment_method: {
+                    card: this.cardNumberElement,
+                    billing_details: {
+                        email: this.orderForm.email,
+                        phone: this.orderForm.phone,
+                        address: {
+                            line1: this.orderForm.address,
+                            city: this.orderForm.city,
+                            postal_code: this.orderForm.postalCode,
+                            country: this.orderForm.country === 'France' ? 'FR' : 'FR'
                         }
                     }
-                );
-                
-                // 3. Gérer les erreurs et succès
-                if (error) {
-                    console.error('❌ Erreur paiement Stripe:', error);
-                    throw new Error(this.translateStripeError(error.message));
                 }
-                
-                if (paymentIntent.status === 'succeeded') {
-                    console.log('✅ Paiement Stripe réussi !');
-                    
-                    // Sauvegarder la commande avec les infos Stripe
-                    await this.saveOrderToServer({
-                        payment: {
-                            method: 'stripe',
-                            paymentIntentId: paymentIntent.id,
-                            chargeId: paymentIntent.charges.data[0]?.id,
-                            cardLast4: paymentIntent.charges.data[0]?.payment_method_details?.card?.last4,
-                            cardBrand: paymentIntent.charges.data[0]?.payment_method_details?.card?.brand,
-                            amount: paymentIntent.amount / 100,
-                            currency: paymentIntent.currency.toUpperCase(),
-                            status: 'succeeded'
-                        }
-                    });
-                }
-                
-            } catch (error) {
-                console.error('❌ Erreur processStripePayment:', error);
-                throw error;
             }
-        },
+        );
+        
+        // 3. Gérer les erreurs
+        if (error) {
+            console.error('❌ Erreur paiement Stripe:', error);
+            throw new Error(this.translateStripeError(error.message));
+        }
+        
+        // 4. Vérifier le succès
+        if (paymentIntent.status === 'succeeded') {
+            console.log('✅ Paiement Stripe réussi !');
+            console.log('🔍 PaymentIntent reçu:', paymentIntent);
+            
+            // ✅ GESTION SÉCURISÉE DES CHARGES
+            let cardLast4 = null;
+            let cardBrand = null;
+            let chargeId = null;
+            
+            // Vérifier si les charges existent et sont disponibles
+            if (paymentIntent.charges && 
+                paymentIntent.charges.data && 
+                paymentIntent.charges.data.length > 0) {
+                
+                const charge = paymentIntent.charges.data[0];
+                console.log('💳 Charge trouvée:', charge.id);
+                
+                chargeId = charge.id;
+                
+                // Vérifier payment_method_details
+                if (charge.payment_method_details && 
+                    charge.payment_method_details.card) {
+                    
+                    cardLast4 = charge.payment_method_details.card.last4;
+                    cardBrand = charge.payment_method_details.card.brand;
+                    
+                    console.log('💳 Infos carte:', { cardLast4, cardBrand });
+                } else {
+                    console.log('⚠️ payment_method_details non disponibles');
+                }
+            } else {
+                console.log('⚠️ Charges non disponibles immédiatement');
+                
+                // FALLBACK : Récupérer les infos via une requête séparée
+                try {
+                    const expandedPaymentIntent = await this.stripe.paymentIntents.retrieve(
+                        paymentIntent.id,
+                        { expand: ['charges.data.payment_method'] }
+                    );
+                    
+                    if (expandedPaymentIntent.charges?.data?.[0]) {
+                        const charge = expandedPaymentIntent.charges.data[0];
+                        chargeId = charge.id;
+                        cardLast4 = charge.payment_method_details?.card?.last4;
+                        cardBrand = charge.payment_method_details?.card?.brand;
+                        console.log('✅ Infos récupérées via expand:', { cardLast4, cardBrand });
+                    }
+                } catch (expandError) {
+                    console.log('⚠️ Impossible de récupérer les détails étendus:', expandError.message);
+                }
+            }
+            
+            // 5. Sauvegarder la commande avec les infos disponibles
+            await this.saveOrderToServer({
+                payment: {
+                    method: 'stripe',
+                    paymentIntentId: paymentIntent.id,
+                    chargeId: chargeId || `charge_${Date.now()}`, // Fallback si pas de charge ID
+                    cardLast4: cardLast4 || 'xxxx', // Fallback si pas d'info carte
+                    cardBrand: cardBrand || 'unknown', // Fallback si pas de brand
+                    amount: paymentIntent.amount / 100,
+                    currency: paymentIntent.currency.toUpperCase(),
+                    status: 'succeeded'
+                }
+            });
+            
+            console.log('✅ Commande sauvegardée avec succès !');
+        } else {
+            throw new Error(`Statut de paiement inattendu: ${paymentIntent.status}`);
+        }
+        
+    } catch (error) {
+        console.error('❌ Erreur processStripePayment:', error);
+        throw error;
+    }
+},
+
+async getPaymentDetails(paymentIntentId) {
+    try {
+        // Cette méthode peut être appelée côté serveur pour plus de fiabilité
+        const paymentIntent = await this.stripe.paymentIntents.retrieve(
+            paymentIntentId,
+            { expand: ['charges.data.payment_method'] }
+        );
+        
+        return {
+            chargeId: paymentIntent.charges?.data?.[0]?.id,
+            cardLast4: paymentIntent.charges?.data?.[0]?.payment_method_details?.card?.last4,
+            cardBrand: paymentIntent.charges?.data?.[0]?.payment_method_details?.card?.brand
+        };
+    } catch (error) {
+        console.error('❌ Erreur récupération détails:', error);
+        return {
+            chargeId: null,
+            cardLast4: null,
+            cardBrand: null
+        };
+    }
+},
 
         // === MÉTHODE PAYPAL ===
          async processPayPalPayment() {
