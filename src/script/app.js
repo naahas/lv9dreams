@@ -17,7 +17,7 @@ var app = new Vue({
                         price: 19.99,
                         oldPrice: 29.99,
                         description: 'Résine pure et authentique récoltée en haute altitude',
-                        image: 'shilajit.jpg', // ← AJOUTER CETTE LIGNE
+                        image: 'shilajit2.png', // ← AJOUTER CETTE LIGNE
                         type: 'physical' 
                     },
                     gelules: {
@@ -25,7 +25,7 @@ var app = new Vue({
                         price: 16.99,
                         oldPrice: 25.99,
                         description: 'Gélules pratiques et dosées avec précision',
-                        image: 'shilajit.jpg', // ← AJOUTER CETTE LIGNE
+                        image: 'shilajit3.png', // ← AJOUTER CETTE LIGNE
                         type: 'physical' 
                     },
                     ebook: {
@@ -563,7 +563,7 @@ checkAdminStatusPeriodically() {
                         price: product.price,
                         oldPrice: product.oldPrice,
                         quantity: quantity,
-                        image: product.image || 'shilajit.jpg', // Image par défaut
+                        image: product.image || 'shilajit2.png', // Image par défaut
                         productType: product.type || 'physical'
                     };
                     
