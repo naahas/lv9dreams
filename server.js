@@ -674,6 +674,272 @@ app.get('/api/test-stripe-connection', validateAdminKey, async (req, res) => {
 });
 
 
+// === ROUTE LISTE CLIENTS ===
+app.get('/api/admin/customers', validateAdminKey, async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const search = req.query.search || '';
+        const offset = (page - 1) * limit;
+        
+        console.log(`👥 Récupération des clients (page ${page}, recherche: "${search}")`);
+        
+        const { supabase } = require('./dbs');
+        
+        // Construction de la requête avec recherche optionnelle
+        let query = supabase
+            .from('orders')
+            .select(`
+                customer_first_name,
+                customer_last_name, 
+                customer_email,
+                customer_phone,
+                customer_city,
+                customer_country,
+                total_amount,
+                created_at
+            `)
+            .order('created_at', { ascending: false });
+        
+        // Ajouter filtre de recherche si fourni
+        if (search.trim()) {
+            query = query.or(
+                `customer_first_name.ilike.%${search}%,` +
+                `customer_last_name.ilike.%${search}%,` +
+                `customer_email.ilike.%${search}%,` +
+                `customer_phone.ilike.%${search}%`
+            );
+        }
+        
+        // Appliquer pagination
+        const { data: orders, error, count } = await query
+            .range(offset, offset + limit - 1)
+            .limit(limit);
+        
+        if (error) throw error;
+        
+        // Grouper par client et calculer stats
+        const clientsMap = new Map();
+        
+        orders?.forEach(order => {
+            const email = order.customer_email;
+            
+            if (clientsMap.has(email)) {
+                const client = clientsMap.get(email);
+                client.totalSpent += parseFloat(order.total_amount || 0);
+                client.orderCount += 1;
+                if (new Date(order.created_at) > new Date(client.lastOrderDate)) {
+                    client.lastOrderDate = order.created_at;
+                }
+            } else {
+                clientsMap.set(email, {
+                    firstName: order.customer_first_name,
+                    lastName: order.customer_last_name,
+                    email: order.customer_email,
+                    phone: order.customer_phone,
+                    city: order.customer_city,
+                    country: order.customer_country,
+                    totalSpent: parseFloat(order.total_amount || 0),
+                    orderCount: 1,
+                    firstOrderDate: order.created_at,
+                    lastOrderDate: order.created_at
+                });
+            }
+        });
+        
+        // Convertir en array et trier par dépense totale
+        const clients = Array.from(clientsMap.values())
+            .sort((a, b) => b.totalSpent - a.totalSpent);
+        
+        // Compter le total unique de clients
+        const { count: totalUniqueClients } = await supabase
+            .from('orders')
+            .select('customer_email', { count: 'exact', head: true })
+            .not('customer_email', 'is', null);
+        
+        console.log(`✅ ${clients.length} clients récupérés`);
+        
+        res.json({
+            success: true,
+            data: clients,
+            pagination: {
+                currentPage: page,
+                totalPages: Math.ceil((count || 0) / limit),
+                totalClients: count || 0,
+                uniqueClients: totalUniqueClients || 0,
+                hasMore: (offset + limit) < (count || 0)
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Erreur liste clients:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erreur récupération clients'
+        });
+    }
+});
+
+// === ROUTE BACKUP COMPLET ===
+app.get('/api/admin/backup', validateAdminKey, async (req, res) => {
+    try {
+        console.log('💾 Génération backup complet...');
+        
+        const { supabase } = require('./dbs');
+        
+        // 1. Récupérer toutes les commandes avec leurs items
+        const { data: orders, error: ordersError } = await supabase
+            .from('orders')
+            .select('*')
+            .order('created_at', { ascending: false });
+        
+        if (ordersError) throw ordersError;
+        
+        const { data: orderItems, error: itemsError } = await supabase
+            .from('order_items')
+            .select('*')
+            .order('order_id', { ascending: false });
+        
+        if (itemsError) throw itemsError;
+        
+        // 2. Récupérer les stats visiteurs
+        const { data: visitors, error: visitorsError } = await supabase
+            .from('visitors')
+            .select('*')
+            .order('visit_date', { ascending: false });
+        
+        const { data: visitorSessions, error: sessionsError } = await supabase
+            .from('visitor_sessions')
+            .select('*')
+            .order('first_visit', { ascending: false })
+            .limit(1000); // Limiter pour éviter trop de données
+        
+        // 3. Calculer des statistiques générales
+        const stats = {
+            totalOrders: orders?.length || 0,
+            totalRevenue: orders?.reduce((sum, order) => sum + parseFloat(order.total_amount || 0), 0) || 0,
+            totalClients: new Set(orders?.map(o => o.customer_email)).size || 0,
+            dateRange: {
+                firstOrder: orders?.length > 0 ? orders[orders.length - 1].created_at : null,
+                lastOrder: orders?.length > 0 ? orders[0].created_at : null
+            },
+            backupDate: new Date().toISOString(),
+            backupVersion: '1.0'
+        };
+        
+        // 4. Créer l'objet backup complet
+        const backupData = {
+            metadata: {
+                siteName: 'LV9Dreams',
+                exportDate: new Date().toISOString(),
+                version: '1.0',
+                stats: stats
+            },
+            orders: orders || [],
+            orderItems: orderItems || [],
+            visitors: visitors || [],
+            visitorSessions: visitorSessions || []
+        };
+        
+        console.log(`✅ Backup généré: ${stats.totalOrders} commandes, ${stats.totalClients} clients`);
+        
+        // 5. Définir le nom de fichier avec timestamp
+        const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
+        const filename = `lv9dreams_backup_${timestamp}.json`;
+        
+        // 6. Envoyer le fichier en téléchargement
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Cache-Control', 'no-cache');
+        
+        res.json(backupData);
+        
+    } catch (error) {
+        console.error('❌ Erreur backup:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erreur génération backup'
+        });
+    }
+});
+
+// === ROUTE BACKUP CSV (ALTERNATIVE) ===
+app.get('/api/admin/backup-csv', validateAdminKey, async (req, res) => {
+    try {
+        console.log('📊 Génération backup CSV...');
+        
+        const { supabase } = require('./dbs');
+        
+        // Récupérer commandes avec calculs
+        const { data: orders, error } = await supabase
+            .from('orders')
+            .select(`
+                order_id,
+                customer_first_name,
+                customer_last_name,
+                customer_email,
+                customer_phone,
+                customer_address,
+                customer_city,
+                customer_country,
+                total_amount,
+                payment_method,
+                created_at
+            `)
+            .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        
+        // Créer le CSV
+        const csvHeaders = [
+            'ID_Commande',
+            'Date',
+            'Prénom', 
+            'Nom',
+            'Email',
+            'Téléphone',
+            'Ville',
+            'Pays',
+            'Montant_Total',
+            'Mode_Paiement'
+        ].join(',');
+        
+        const csvRows = orders?.map(order => [
+            order.order_id,
+            new Date(order.created_at).toLocaleDateString('fr-FR'),
+            `"${order.customer_first_name || ''}"`,
+            `"${order.customer_last_name || ''}"`,
+            order.customer_email,
+            order.customer_phone || '',
+            `"${order.customer_city || ''}"`,
+            `"${order.customer_country || ''}"`,
+            order.total_amount,
+            order.payment_method || ''
+        ].join(',')) || [];
+        
+        const csvContent = [csvHeaders, ...csvRows].join('\n');
+        
+        // Nom de fichier avec timestamp
+        const timestamp = new Date().toISOString().slice(0, 10);
+        const filename = `lv9dreams_orders_${timestamp}.csv`;
+        
+        console.log(`✅ CSV généré: ${orders?.length || 0} commandes`);
+        
+        // Envoyer le CSV
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.send('\uFEFF' + csvContent); // BOM pour Excel
+        
+    } catch (error) {
+        console.error('❌ Erreur backup CSV:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Erreur génération CSV'
+        });
+    }
+});
+
+
 app.get('/api/debug/stripe-config', validateAdminKey, (req, res) => {
     res.json({
         success: true,

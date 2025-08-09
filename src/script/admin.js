@@ -402,6 +402,240 @@ var adminApp = new Vue({
     }, 1000);
 },
 
+showCustomersModal: function() {
+    // Supprimer modal existant s'il y en a un
+    const existingModal = document.getElementById('customers-modal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    // Créer le HTML de la modal
+    const modalHTML = `
+        <div id="customers-modal" class="admin-modal-overlay">
+            <div class="admin-modal">
+                <div class="modal-header">
+                    <h2>👥 Liste des Clients</h2>
+                    <button class="modal-close" onclick="document.getElementById('customers-modal').remove()">×</button>
+                </div>
+                
+                <div class="modal-content">
+                    <div class="customers-filters">
+                        <input type="text" id="customers-search" placeholder="🔍 Rechercher par nom, email..." />
+                        <button onclick="adminApp.searchCustomers()">Rechercher</button>
+                        <button onclick="adminApp.exportCustomers()">📥 Exporter CSV</button>
+                    </div>
+                    
+                    <div id="customers-loading" style="text-align: center; padding: 2rem;">
+                        <div class="loading-spinner"></div>
+                        <p>Chargement des clients...</p>
+                    </div>
+                    
+                    <div id="customers-list" style="display: none;">
+                        <div class="customers-stats">
+                            <div class="stat-item">
+                                <span class="stat-label">Total clients :</span>
+                                <span id="total-clients">-</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Clients uniques :</span>
+                                <span id="unique-clients">-</span>
+                            </div>
+                        </div>
+                        
+                        <div class="customers-table">
+                            <div class="table-header">
+                                <div>Client</div>
+                                <div>Contact</div>
+                                <div>Localisation</div>
+                                <div>Commandes</div>
+                                <div>Total dépensé</div>
+                                <div>Dernière commande</div>
+                            </div>
+                            <div id="customers-rows">
+                                <!-- Les clients seront ajoutés ici -->
+                            </div>
+                        </div>
+                        
+                        <div class="customers-pagination">
+                            <button id="prev-customers" onclick="adminApp.loadCustomersPage(adminApp.currentCustomersPage - 1)">← Précédent</button>
+                            <span id="customers-page-info">Page 1</span>
+                            <button id="next-customers" onclick="adminApp.loadCustomersPage(adminApp.currentCustomersPage + 1)">Suivant →</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Ajouter au DOM
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    
+    // Initialiser les données
+    this.currentCustomersPage = 1;
+    this.loadCustomers();
+},
+
+loadCustomers: function(page = 1, search = '') {
+    const loading = document.getElementById('customers-loading');
+    const list = document.getElementById('customers-list');
+    
+    if (loading) loading.style.display = 'block';
+    if (list) list.style.display = 'none';
+    
+    fetch(`/api/admin/customers?page=${page}&limit=20&search=${encodeURIComponent(search)}`, {
+        headers: {
+            'x-admin-key': sessionStorage.getItem('lv9_admin_key')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            this.displayCustomers(data.data, data.pagination);
+            this.currentCustomersPage = page;
+        } else {
+            alert('❌ Erreur: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('❌ Erreur chargement clients:', error);
+        alert('❌ Erreur de connexion');
+    })
+    .finally(() => {
+        if (loading) loading.style.display = 'none';
+        if (list) list.style.display = 'block';
+    });
+},
+
+displayCustomers: function(customers, pagination) {
+    const container = document.getElementById('customers-rows');
+    const totalClients = document.getElementById('total-clients');
+    const uniqueClients = document.getElementById('unique-clients');
+    const pageInfo = document.getElementById('customers-page-info');
+    const prevBtn = document.getElementById('prev-customers');
+    const nextBtn = document.getElementById('next-customers');
+    
+    if (!container) return;
+    
+    // Mettre à jour les stats
+    if (totalClients) totalClients.textContent = pagination.totalClients;
+    if (uniqueClients) uniqueClients.textContent = pagination.uniqueClients;
+    if (pageInfo) pageInfo.textContent = `Page ${pagination.currentPage} / ${pagination.totalPages}`;
+    
+    // Gérer pagination
+    if (prevBtn) prevBtn.disabled = pagination.currentPage === 1;
+    if (nextBtn) nextBtn.disabled = !pagination.hasMore;
+    
+    // Afficher les clients
+    container.innerHTML = customers.map(client => `
+        <div class="customer-row">
+            <div class="customer-info">
+                <div class="customer-name">${client.firstName} ${client.lastName}</div>
+                <div class="customer-email">${client.email}</div>
+            </div>
+            <div class="customer-contact">
+                <div>${client.phone || 'N/A'}</div>
+            </div>
+            <div class="customer-location">
+                <div>${client.city || 'N/A'}</div>
+                <div>${client.country || 'N/A'}</div>
+            </div>
+            <div class="customer-orders">
+                <div class="orders-count">${client.orderCount} commande${client.orderCount > 1 ? 's' : ''}</div>
+            </div>
+            <div class="customer-total">
+                <div class="total-spent">${client.totalSpent.toFixed(2)}€</div>
+            </div>
+            <div class="customer-last-order">
+                <div>${new Date(client.lastOrderDate).toLocaleDateString('fr-FR')}</div>
+            </div>
+        </div>
+    `).join('');
+},
+
+searchCustomers: function() {
+    const searchInput = document.getElementById('customers-search');
+    const searchTerm = searchInput ? searchInput.value.trim() : '';
+    this.loadCustomers(1, searchTerm);
+},
+
+loadCustomersPage: function(page) {
+    if (page < 1) return;
+    const searchInput = document.getElementById('customers-search');
+    const searchTerm = searchInput ? searchInput.value.trim() : '';
+    this.loadCustomers(page, searchTerm);
+},
+
+exportCustomers: function() {
+    console.log('📥 Export clients...');
+    
+    const link = document.createElement('a');
+    link.href = '/api/admin/backup-csv?' + new URLSearchParams({
+        'x-admin-key': sessionStorage.getItem('lv9_admin_key')
+    });
+    link.download = `lv9dreams_clients_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+},
+
+// === FONCTION BACKUP DONNÉES ===
+downloadBackup: function() {
+    if (!confirm('💾 Générer un backup complet des données ?\n\nCela peut prendre quelques secondes...')) {
+        return;
+    }
+    
+    console.log('💾 Génération backup...');
+    
+    // Afficher indicateur de chargement
+    const originalText = event.target.textContent;
+    event.target.textContent = '⏳ Génération...';
+    event.target.disabled = true;
+    
+    fetch('/api/admin/backup', {
+        headers: {
+            'x-admin-key': sessionStorage.getItem('lv9_admin_key')
+        }
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Erreur serveur');
+        return response.json();
+    })
+    .then(data => {
+        // Créer le fichier et le télécharger
+        const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
+        const filename = `lv9dreams_backup_${timestamp}.json`;
+        
+        const blob = new Blob([JSON.stringify(data, null, 2)], { 
+            type: 'application/json' 
+        });
+        
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        link.click();
+        
+        URL.revokeObjectURL(url);
+        
+        // Afficher résumé
+        const stats = data.metadata.stats;
+        alert(`✅ Backup généré avec succès !\n\n` +
+              `📦 ${stats.totalOrders} commandes\n` +
+              `👥 ${stats.totalClients} clients\n` +
+              `💰 ${stats.totalRevenue.toFixed(2)}€ de revenus\n\n` +
+              `📁 Fichier: ${filename}`);
+        
+        console.log('✅ Backup téléchargé:', filename);
+    })
+    .catch(error => {
+        console.error('❌ Erreur backup:', error);
+        alert('❌ Erreur lors de la génération du backup');
+    })
+    .finally(() => {
+        // Restaurer le bouton
+        event.target.textContent = originalText;
+        event.target.disabled = false;
+    });
+},
+
 
 cleanOldSessions: function() {
     const daysOld = prompt('Supprimer les sessions de plus de combien de jours ? (défaut: 30)', '30');
@@ -466,18 +700,47 @@ cleanOldSessions: function() {
         },
 
         exportOrders: function() {
-            // TODO: Implémenter export CSV
-            alert('🚧 Export CSV en cours de développement...');
-        },
+    console.log('📥 Export commandes CSV...');
+    
+    // Créer le lien de téléchargement
+    const timestamp = new Date().toISOString().slice(0, 10);
+    const filename = `lv9dreams_commandes_${timestamp}.csv`;
+    
+    // Utiliser la route backup-csv qui exporte toutes les commandes
+    const link = document.createElement('a');
+    link.href = `/api/admin/backup-csv`;
+    link.download = filename;
+    link.style.display = 'none';
+    
+    // Ajouter les headers d'authentification
+    fetch(`/api/admin/backup-csv`, {
+        headers: {
+            'x-admin-key': sessionStorage.getItem('lv9_admin_key')
+        }
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Erreur serveur');
+        return response.blob();
+    })
+    .then(blob => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        console.log('✅ Export commandes téléchargé:', filename);
+    })
+    .catch(error => {
+        console.error('❌ Erreur export commandes:', error);
+        alert('❌ Erreur lors de l\'export des commandes');
+    });
+},
 
-        downloadBackup: function() {
-            // TODO: Backup des données
-            alert('🚧 Backup en cours de développement...');
-        },
 
         viewCustomers: function() {
-            // TODO: Liste des clients
-            alert('🚧 Liste clients en cours de développement...');
+            this.showCustomersModal();
         },
 
         goToSite: function() {
