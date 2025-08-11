@@ -98,6 +98,42 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 io.engine.use(sessionMiddleware);
 
+// Middleware pour URLs propres (sans .html)
+app.use((req, res, next) => {
+    // Si l'URL se termine par .html, rediriger vers la version sans .html
+    if (req.path.endsWith('.html')) {
+        const cleanUrl = req.path.slice(0, -5); // Enlever .html
+        return res.redirect(301, cleanUrl + req.url.slice(req.path.length));
+    }
+    next();
+});
+
+// Middleware pour servir les fichiers .html sans extension
+app.use(async (req, res, next) => {
+    // EXCLURE les routes API et autres routes spéciales
+    const excludedPaths = ['/api', '/admin', '/download-ebook', '/paypal-success', '/paypal-cancel'];
+    
+    // Vérifier si l'URL commence par un chemin exclu
+    const isExcluded = excludedPaths.some(excluded => req.path.startsWith(excluded));
+    
+    // Si pas d'extension dans l'URL ET pas une route exclue ET pas la racine
+    if (!req.path.includes('.') && req.path !== '/' && !isExcluded) {
+        const htmlPath = path.join(__dirname, 'src/html', req.path + '.html');
+        
+        try {
+            // Vérifier si le fichier .html existe (version async)
+            await fs.access(htmlPath);
+            // Le fichier existe, le servir
+            return res.sendFile(htmlPath);
+        } catch (err) {
+            // Le fichier n'existe pas, continuer vers les autres routes
+            next();
+        }
+    } else {
+        next();
+    }
+});
+
 // Variables globales
 let connectedUsers = new Map(); 
 const downloadTokens = new Map();
@@ -114,22 +150,49 @@ console.error = (...args) => {
     originalConsoleError('[ERROR]', new Date().toISOString(), ...args);
 };
 
-console.log('🚀 Serveur LV9Dreams démarré');
-console.log('🔧 Environment:', process.env.NODE_ENV);
-console.log('💳 Stripe configuré:', !!process.env.STRIPE_SECRET_KEY);
-console.log('📧 Email configuré:', !!process.env.SMTP_PASS);
-console.log('💾 Supabase configuré:', !!process.env.SUPABASE_URL);
+// console.log('🚀 Serveur LV9Dreams démarré');
+// console.log('🔧 Environment:', process.env.NODE_ENV);
+// console.log('💳 Stripe configuré:', !!process.env.STRIPE_SECRET_KEY);
+// console.log('📧 Email configuré:', !!process.env.SMTP_PASS);
+// console.log('💾 Supabase configuré:', !!process.env.SUPABASE_URL);
 
 // Routes
 app.get('/', function(req, res) {
     res.sendFile(__dirname + '/src/html/home.html');
 });
 
+// app.get('/home' , function(req, res) {
+//     res.sendFile(__dirname + '/src/html/home.html');
+// });
+
 
 app.get('/admin', function(req, res) {
     res.sendFile(__dirname + '/src/html/admin.html');
 });
 
+app.get('/order', function(req, res) {
+    res.sendFile(__dirname + '/src/html/order.html');
+});
+
+app.get('/contact', function(req, res) {
+    res.sendFile(__dirname + '/src/html/contact.html');
+});
+
+app.get('/mentions', function(req, res) {
+    res.sendFile(__dirname + '/src/html/mentions.html');
+});
+
+app.get('/confidentialite', function(req, res) {
+    res.sendFile(__dirname + '/src/html/confidentialite.html');
+});
+
+app.get('/cgv', function(req, res) {
+    res.sendFile(__dirname + '/src/html/cgv.html');
+});
+
+app.get('/faq', function(req, res) {
+    res.sendFile(__dirname + '/src/html/faq.html');
+});
 
 app.get('/api/stripe-config', (req, res) => {
     res.json({

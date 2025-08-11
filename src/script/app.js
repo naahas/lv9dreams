@@ -739,8 +739,8 @@ checkAdminStatusPeriodically() {
                 
                 // Petite pause pour l'animation de fermeture
                 setTimeout(() => {
-                    window.location.href = './order.html';
-                }, 300);
+                    window.location.href = './order';
+                }, 100);
             },
 
 
@@ -772,16 +772,16 @@ checkAdminStatusPeriodically() {
             goToOrder: function(productType = null) {
                 if (productType) {
                     // Avec pré-sélection du produit
-                    window.location.href = `./order.html?product=${productType}`;
+                    window.location.href = `./order?product=${productType}`;
                 } else {
                     // Sans pré-sélection
-                    window.location.href = './order.html';
+                    window.location.href = './order';
                 }
             },
 
 
             goHome: function() {
-                location.href = "home.html"
+                location.href = "/home"
             },
 
 
