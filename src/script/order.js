@@ -775,68 +775,140 @@ async getPaymentDetails(paymentIntentId) {
     }
 },
 
-        // === MÉTHODE PAYPAL ===
-         async processPayPalPayment() {
-    console.log('🅿️ Traitement paiement PayPal...');
+// === MÉTHODE PAYPAL ===
+async processPayPalPayment() {
+    console.log('🅿️ Redirection PayPal.me...');
     
     try {
-        // 🧪 MODE SIMULATION POUR LOCAL
-        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-            console.log('🧪 MODE SIMULATION PAYPAL LOCAL');
-            
-            // Simuler un délai de traitement PayPal
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            
-            // Simuler un paiement PayPal réussi
-            await this.saveOrderToServer({
-                payment: {
-                    method: 'paypal',
-                    paypalOrderId: `FAKE-${Date.now()}`,
-                    payerId: 'FAKE-PAYER-123',
-                    captureId: `FAKE-CAPTURE-${Date.now()}`,
-                    amount: parseFloat(this.getCartTotal()),
-                    currency: 'EUR',
-                    status: 'completed'
-                }
-            });
-            
-            console.log('✅ Simulation PayPal terminée !');
+        // 1. Valider le formulaire d'abord
+        if (!this.validateForm()) {
             return;
         }
         
-        // 🔴 MODE RÉEL PAYPAL (pour production)
-        // 1. Créer la commande PayPal
-        const response = await fetch('/api/create-paypal-order', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                amount: parseFloat(this.getCartTotal()),
-                currency: 'EUR',
-                orderData: {
-                    customer: this.orderForm,
-                    products: this.cartItems
-                }
-            })
-        });
+        // 2. Calculer le montant total
+        const totalAmount = parseFloat(this.getCartTotal());
         
-        const data = await response.json();
+        // 3. Préparer les données de commande pour sauvegarde temporaire
+        const orderData = {
+            customer: { ...this.orderForm },
+            products: this.cartItems.map(item => ({
+                type: item.type,
+                name: item.name,
+                price: item.price,
+                quantity: item.quantity
+            })),
+            total: totalAmount,
+            timestamp: Date.now()
+        };
         
-        if (!data.success) {
-            throw new Error(data.message || 'Erreur création commande PayPal');
-        }
+        // 4. Sauvegarder temporairement dans sessionStorage
+        sessionStorage.setItem('lv9_paypal_pending_order', JSON.stringify(orderData));
         
-        console.log('✅ Commande PayPal créée:', data.orderId);
+        // 5. Créer l'URL PayPal.me avec le montant
+        // REMPLACE "tonpseudo" par ton vrai pseudo PayPal.me
+        const paypalMeUrl = `https://paypal.me/naahas/${totalAmount}EUR`;
         
-        // 2. Sauvegarder temporairement les données de commande
-        sessionStorage.setItem('lv9_paypal_temp_order', JSON.stringify(data.tempOrderData));
-        
-        // 3. Rediriger vers PayPal pour le paiement
-        console.log('🔄 Redirection vers PayPal...');
-        window.location.href = data.approvalUrl;
+        // 6. Afficher modal d'instructions
+        this.showPayPalInstructions(paypalMeUrl, totalAmount);
         
     } catch (error) {
-        console.error('❌ Erreur processPayPalPayment:', error);
-        throw error;
+        console.error('❌ Erreur PayPal.me:', error);
+        this.orderError = error.message || "Erreur lors du traitement PayPal";
+    }
+},
+
+// Nouvelle méthode pour afficher les instructions (VERSION PRO)
+showPayPalInstructions(paypalUrl, amount) {
+    // Créer le modal d'instructions
+    const modal = document.createElement('div');
+    modal.className = 'paypal-pro-modal';
+    modal.innerHTML = `
+        <div class="paypal-pro-content">
+            <div class="paypal-pro-header">
+                <div class="paypal-logo">
+                    <span class="paypal-icon">🅿️</span>
+                    <span class="paypal-text">PayPal</span>
+                </div>
+                <button class="paypal-close" onclick="this.closest('.paypal-pro-modal').remove()">✕</button>
+            </div>
+            <div class="paypal-pro-body">
+                <div class="payment-amount">
+                    <span class="amount-label">Montant</span>
+                    <span class="amount-value">${amount}€</span>
+                </div>
+                <p class="payment-notice">
+                    Vous allez être redirigé vers PayPal pour finaliser votre paiement de manière sécurisée.
+                </p>
+                <div class="paypal-action">
+                    <a href="${paypalUrl}" target="_blank" class="btn-paypal-pro" onclick="window.vueApp.handlePayPalRedirect(); setTimeout(() => { window.location.href = '/paypal-confirm'; }, 1000);">
+                        <span class="btn-icon">🅿️</span>
+                        <span class="btn-text">Continuer avec PayPal</span>
+                        <span class="btn-arrow">→</span>
+                    </a>
+                </div>
+                <div class="security-info">
+                    <span class="security-icon">🔒</span>
+                    <span class="security-text">Paiement sécurisé par PayPal</span>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Stocker la référence de l'app Vue
+    window.vueApp = this;
+},
+
+// Méthode pour gérer la redirection PayPal
+async handlePayPalRedirect() {
+    try {
+        // Fermer le modal immédiatement
+        document.querySelector('.paypal-pro-modal')?.remove();
+        
+        // ⚠️ ON NE SAUVEGARDE PAS ENCORE - juste redirection
+        console.log('🅿️ Redirection vers PayPal.me sans sauvegarder...');
+        
+        // Note: Les données restent dans sessionStorage pour une éventuelle future utilisation
+        // Mais on ne sauvegarde PAS la commande maintenant
+        
+    } catch (error) {
+        console.error('❌ Erreur PayPal redirect:', error);
+        this.orderError = error.message;
+    }
+},        
+
+// Méthode pour confirmer le paiement
+async confirmPayPalPayment() {
+    try {
+        // Récupérer les données de commande
+        const orderData = JSON.parse(sessionStorage.getItem('lv9_paypal_pending_order'));
+        
+        if (!orderData) {
+            throw new Error('Données de commande introuvables');
+        }
+        
+        // Sauvegarder la commande avec statut PayPal
+        await this.saveOrderToServer({
+            payment: {
+                method: 'paypal_me',
+                amount: orderData.total,
+                currency: 'EUR',
+                status: 'pending_verification', // Sera vérifié manuellement
+                paypal_me_url: `https://paypal.me/naahas/${orderData.total}EUR`,
+                timestamp: new Date().toISOString()
+            }
+        });
+        
+        // Nettoyer
+        sessionStorage.removeItem('lv9_paypal_pending_order');
+        document.querySelector('.paypal-instructions-modal')?.remove();
+        
+        console.log('✅ Commande PayPal.me enregistrée');
+        
+    } catch (error) {
+        console.error('❌ Erreur confirmation PayPal:', error);
+        this.orderError = error.message;
     }
 },
 

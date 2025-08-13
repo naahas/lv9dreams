@@ -1003,6 +1003,9 @@ app.get('/api/admin/backup-csv', validateAdminKey, async (req, res) => {
 });
 
 
+
+
+
 app.get('/api/debug/stripe-config', validateAdminKey, (req, res) => {
     res.json({
         success: true,
@@ -1630,6 +1633,205 @@ app.get('/api/admin/ebook-downloads', validateAdminKey, (req, res) => {
     });
 });
 
+
+app.get('/paypal-confirm', (req, res) => {
+    res.send(`
+        <!DOCTYPE html>
+        <html lang="fr">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Confirmation PayPal - LV9Dreams</title>
+            <style>
+                body { 
+                    font-family: 'Inter', sans-serif; 
+                    background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
+                    color: #ffffff;
+                    display: flex; 
+                    justify-content: center; 
+                    align-items: center; 
+                    min-height: 100vh; 
+                    margin: 0;
+                    padding: 2rem;
+                }
+                .container { 
+                    text-align: center; 
+                    padding: 3rem;
+                    background: rgba(255, 255, 255, 0.05);
+                    backdrop-filter: blur(15px);
+                    border: 1px solid rgba(212, 175, 55, 0.2);
+                    border-radius: 20px;
+                    max-width: 500px;
+                    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+                }
+                .logo {
+                    font-family: 'Orbitron', monospace;
+                    font-size: 2rem;
+                    font-weight: 700;
+                    background: linear-gradient(45deg, #d4af37, #ffd700);
+                    -webkit-background-clip: text;
+                    -webkit-text-fill-color: transparent;
+                    margin-bottom: 2rem;
+                }
+                h1 {
+                    color: #d4af37;
+                    margin-bottom: 1.5rem;
+                    font-size: 1.8rem;
+                }
+                p {
+                    color: #cccccc;
+                    line-height: 1.6;
+                    margin-bottom: 2rem;
+                }
+                .buttons {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 1rem;
+                }
+                .btn {
+                    padding: 1rem 2rem;
+                    border: none;
+                    border-radius: 12px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                    text-decoration: none;
+                    display: inline-block;
+                    font-size: 1rem;
+                }
+                .btn-primary {
+                    background: linear-gradient(45deg, #28a745, #34ce57);
+                    color: white;
+                }
+                .btn-primary:hover {
+                    transform: translateY(-3px);
+                    box-shadow: 0 10px 25px rgba(40, 167, 69, 0.4);
+                }
+                .btn-secondary {
+                    background: transparent;
+                    color: #d4af37;
+                    border: 2px solid #d4af37;
+                }
+                .btn-secondary:hover {
+                    background: #d4af37;
+                    color: #000000;
+                    transform: translateY(-3px);
+                }
+                .notice {
+                    background: rgba(255, 193, 7, 0.1);
+                    border: 1px solid rgba(255, 193, 7, 0.3);
+                    padding: 1rem;
+                    border-radius: 10px;
+                    margin-bottom: 2rem;
+                    color: #ffc107;
+                    font-size: 0.9rem;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="logo">LV9Dreams</div>
+                <h1>🅿️ Avez-vous finalisé votre paiement PayPal ?</h1>
+                <p>
+                    Si vous avez effectué le paiement sur PayPal, cliquez sur "Oui, j'ai payé" 
+                    pour confirmer votre commande.
+                </p>
+                <div class="notice">
+                    💡 Votre commande ne sera confirmée qu'après validation de votre paiement
+                </div>
+                <div class="buttons">
+                    <button class="btn btn-primary" onclick="confirmPayment()">
+                        ✅ Oui, j'ai payé
+                    </button>
+                    <a href="/" class="btn btn-secondary">
+                        ❌ Non, retour à l'accueil
+                    </a>
+                </div>
+            </div>
+            
+            <script>
+                async function confirmPayment() {
+                    try {
+                        // Récupérer les données de commande temporaires
+                        const orderData = JSON.parse(sessionStorage.getItem('lv9_paypal_pending_order'));
+                        
+                        if (!orderData) {
+                            alert('❌ Erreur: Données de commande introuvables');
+                            window.location.href = '/';
+                            return;
+                        }
+                        
+                        // Afficher loading
+                        document.querySelector('.btn-primary').innerHTML = '⏳ Confirmation en cours...';
+                        document.querySelector('.btn-primary').disabled = true;
+                        
+                        // Envoyer la commande au serveur MAINTENANT
+                        const finalOrderData = {
+                            customer: orderData.customer,
+                            products: orderData.products,
+                            subtotal: orderData.total,
+                            shipping: 0,
+                            total: orderData.total,
+                            payment: {
+                                method: 'paypal_me',
+                                amount: orderData.total,
+                                currency: 'EUR',
+                                status: 'pending_verification',
+                                paypal_me_url: \`https://paypal.me/naahas/\${orderData.total}EUR\`,
+                                timestamp: new Date().toISOString()
+                            },
+                            orderDate: new Date().toISOString()
+                        };
+                        
+                        const response = await fetch('/api/order', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(finalOrderData)
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            // Nettoyer les données temporaires
+                            sessionStorage.removeItem('lv9_paypal_pending_order');
+                            localStorage.removeItem('lv9dreams_cart');
+                            localStorage.removeItem('lv9dreams_cart_count');
+                            
+                            // Afficher succès
+                            document.querySelector('.container').innerHTML = \`
+                                <div class="logo">LV9Dreams</div>
+                                <h1>✅ Commande confirmée !</h1>
+                                <p>Merci ! Votre commande \${result.orderId} a été enregistrée.</p>
+                                <p>Vous allez recevoir un email de confirmation.</p>
+                                <a href="/" class="btn btn-primary">Retour à l'accueil</a>
+                            \`;
+                            
+                            // Redirection automatique après 5 secondes
+                            setTimeout(() => {
+                                window.location.href = '/';
+                            }, 5000);
+                            
+                        } else {
+                            throw new Error(result.message || 'Erreur serveur');
+                        }
+                        
+                    } catch (error) {
+                        console.error('Erreur confirmation:', error);
+                        alert('❌ Erreur: ' + error.message);
+                        document.querySelector('.btn-primary').innerHTML = '✅ Oui, j\\'ai payé';
+                        document.querySelector('.btn-primary').disabled = false;
+                    }
+                }
+                
+                // Nettoyer si l'utilisateur quitte sans confirmer
+                window.addEventListener('beforeunload', () => {
+                    // On ne nettoie PAS ici pour permettre plusieurs tentatives
+                });
+            </script>
+        </body>
+        </html>
+    `);
+});
 
 app.post('/api/contact', async (req, res) => {
     try {
