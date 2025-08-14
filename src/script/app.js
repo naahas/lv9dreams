@@ -30,10 +30,10 @@ var app = new Vue({
                     },
                     ebook: {
                         name: 'LV9 Code - Guide Ultime du Succès',
-                        price: 0.70,
+                        price: 18.99,
                         oldPrice: null,
                         description: 'eBook de développement personnel et stratégies de réussite',
-                        image: 'ebookcover.jpg', 
+                        image: 'ebookcover.jpg', // ← DÉJÀ PRÉSENT
                         type: 'digital'
                     }
                 },
