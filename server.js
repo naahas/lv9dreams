@@ -1440,8 +1440,8 @@ app.post('/api/order', async (req, res) => {
                 // Générer un token de téléchargement sécurisé
                 downloadToken = generateDownloadToken(orderData);
                 //const downloadUrl = `${req.protocol}://${req.get('host')}/download-ebook/${downloadToken}`;
-                const downloadUrl = `https://lv9dreams.com/download-ebook/${downloadToken}`;
-                
+                const downloadUrl = `${req.protocol}://${req.get('host')}/download-ebook/${downloadToken}`;
+    
                 ebookSection = `
                     <div style="background: #e8f4fd; border: 2px solid #2196F3; padding: 1.5rem; border-radius: 10px; margin: 1.5rem 0;">
                         <h3 style="color: #1565C0; margin: 0 0 1rem 0; display: flex; align-items: center;">
