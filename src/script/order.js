@@ -18,6 +18,18 @@ var app = new Vue({
                 notes: '',
                 paymentMethod: 'stripe',
             },
+
+            showConfirmationModal: false,
+            confirmationData: {
+                orderId: '',
+                customerName: '',
+                customerEmail: '',
+                products: [],
+                total: '',
+                paymentMethod: '',
+                deliveryAddress: {},
+                ebookDownloadToken: null
+            },
             
             
             // États de soumission
@@ -677,71 +689,41 @@ forceStripeInit: function() {
         // 4. Vérifier le succès
         if (paymentIntent.status === 'succeeded') {
             console.log('✅ Paiement Stripe réussi !');
-            console.log('🔍 PaymentIntent reçu:', paymentIntent);
             
-            // ✅ GESTION SÉCURISÉE DES CHARGES
+            // Récupérer les infos de carte
             let cardLast4 = null;
             let cardBrand = null;
             let chargeId = null;
             
-            // Vérifier si les charges existent et sont disponibles
             if (paymentIntent.charges && 
                 paymentIntent.charges.data && 
                 paymentIntent.charges.data.length > 0) {
                 
                 const charge = paymentIntent.charges.data[0];
-                console.log('💳 Charge trouvée:', charge.id);
-                
                 chargeId = charge.id;
                 
-                // Vérifier payment_method_details
                 if (charge.payment_method_details && 
                     charge.payment_method_details.card) {
-                    
                     cardLast4 = charge.payment_method_details.card.last4;
                     cardBrand = charge.payment_method_details.card.brand;
-                    
-                    console.log('💳 Infos carte:', { cardLast4, cardBrand });
-                } else {
-                    console.log('⚠️ payment_method_details non disponibles');
-                }
-            } else {
-                console.log('⚠️ Charges non disponibles immédiatement');
-                
-                // FALLBACK : Récupérer les infos via une requête séparée
-                try {
-                    const expandedPaymentIntent = await this.stripe.paymentIntents.retrieve(
-                        paymentIntent.id,
-                        { expand: ['charges.data.payment_method'] }
-                    );
-                    
-                    if (expandedPaymentIntent.charges?.data?.[0]) {
-                        const charge = expandedPaymentIntent.charges.data[0];
-                        chargeId = charge.id;
-                        cardLast4 = charge.payment_method_details?.card?.last4;
-                        cardBrand = charge.payment_method_details?.card?.brand;
-                        console.log('✅ Infos récupérées via expand:', { cardLast4, cardBrand });
-                    }
-                } catch (expandError) {
-                    console.log('⚠️ Impossible de récupérer les détails étendus:', expandError.message);
                 }
             }
             
-            // 5. Sauvegarder la commande avec les infos disponibles
+            // 5. Sauvegarder la commande (qui affichera automatiquement le modal)
             await this.saveOrderToServer({
                 payment: {
                     method: 'stripe',
                     paymentIntentId: paymentIntent.id,
-                    chargeId: chargeId || `charge_${Date.now()}`, // Fallback si pas de charge ID
-                    cardLast4: cardLast4 || 'xxxx', // Fallback si pas d'info carte
-                    cardBrand: cardBrand || 'unknown', // Fallback si pas de brand
+                    chargeId: chargeId || `charge_${Date.now()}`,
+                    cardLast4: cardLast4 || 'xxxx',
+                    cardBrand: cardBrand || 'unknown',
                     amount: paymentIntent.amount / 100,
                     currency: paymentIntent.currency.toUpperCase(),
                     status: 'succeeded'
                 }
             });
             
-            console.log('✅ Commande sauvegardée avec succès !');
+            console.log('✅ Commande sauvegardée avec modal de confirmation !');
         } else {
             throw new Error(`Statut de paiement inattendu: ${paymentIntent.status}`);
         }
@@ -876,7 +858,168 @@ async handlePayPalRedirect() {
         console.error('❌ Erreur PayPal redirect:', error);
         this.orderError = error.message;
     }
-},        
+},  
+
+showOrderConfirmation: function(orderData) {
+    console.log('🎉 Affichage confirmation commande:', orderData);
+    
+    this.confirmationData = {
+        orderId: orderData.orderId,
+        customerName: orderData.customerName,
+        customerEmail: orderData.customerEmail,
+        products: orderData.products,
+        total: orderData.total,
+        paymentMethod: orderData.paymentMethod,
+        deliveryAddress: {
+            address: this.orderForm.address,
+            postalCode: this.orderForm.postalCode,
+            city: this.orderForm.city,
+            country: this.orderForm.country
+        },
+        ebookDownloadToken: orderData.ebookDownloadToken || null
+    };
+    
+    // Afficher le modal avec un léger délai pour l'animation
+    setTimeout(() => {
+        this.showConfirmationModal = true;
+    }, 300);
+},
+
+// Fermer le modal de confirmation
+closeConfirmationModal: function() {
+    this.showConfirmationModal = false;
+    
+    // Reset des données après fermeture
+    setTimeout(() => {
+        this.confirmationData = {
+            orderId: '',
+            customerName: '',
+            customerEmail: '',
+            products: [],
+            total: '',
+            paymentMethod: '',
+            deliveryAddress: {},
+            ebookDownloadToken: null
+        };
+
+        window.location.href = './';
+
+    }, 500);
+},
+
+// Retour à l'accueil
+returnToHome: function() {
+    this.closeConfirmationModal();
+    
+    // Attendre la fermeture du modal avant redirection
+    setTimeout(() => {
+        window.location.href = './';
+    }, 500);
+},
+
+downloadEbook: function() {
+    if (this.confirmationData.ebookDownloadToken) {
+        // Si on a un token spécifique
+        const downloadUrl = `/download-ebook/${this.confirmationData.ebookDownloadToken}`;
+        window.open(downloadUrl, '_blank');
+    } else {
+        // Fallback : chercher l'eBook dans les emails ou afficher message
+        alert('Le lien de téléchargement a été envoyé par email. Vérifiez votre boîte de réception.');
+    }
+},
+
+
+formatDate: function(date) {
+    return date.toLocaleDateString('fr-FR', {
+        day: '2-digit',
+        month: '2-digit', 
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+},
+
+// Affichage du mode de paiement
+getPaymentMethodDisplay: function(method) {
+    const methods = {
+        'stripe': 'Carte bancaire (Stripe)',
+        'paypal': 'PayPal',
+        'paypal_me': 'PayPal.me',
+        'card': 'Carte bancaire'
+    };
+    return methods[method] || 'Autre';
+},
+
+// === MODIFICATION DE LA MÉTHODE saveOrderToServer EXISTANTE ===
+// Remplacer la fin de la méthode saveOrderToServer existante par :
+
+async saveOrderToServer(paymentData, orderOverride = null) {
+    try {
+        const orderData = {
+            customer: orderOverride ? orderOverride.customer : { ...this.orderForm },
+            products: orderOverride ? orderOverride.products : this.cartItems.map(item => ({
+                type: item.type,
+                name: item.name,
+                price: item.price,
+                oldPrice: item.oldPrice,
+                quantity: item.quantity,
+                image: item.image, // ← Ajouter l'image pour le modal
+                productType: item.productType // ← Ajouter le type pour le modal
+            })),
+            payment: paymentData.payment,
+            subtotal: orderOverride ? orderOverride.total : this.getCartTotal(),
+            shipping: 0,
+            total: orderOverride ? orderOverride.total : this.getCartTotal(),
+            orderDate: new Date().toISOString()
+        };
+        
+        console.log('💾 Sauvegarde commande sur le serveur...');
+        
+        // Envoyer au serveur
+        const response = await fetch('/api/order', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(orderData)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            this.orderSuccess = true;
+            console.log('✅ Commande enregistrée avec succès !');
+            console.log('📦 ID Commande:', result.orderId);
+            
+            // ✨ NOUVEAU : Préparer les données pour le modal de confirmation
+            const confirmationData = {
+                orderId: result.orderId,
+                customerName: `${orderData.customer.firstName} ${orderData.customer.lastName}`,
+                customerEmail: orderData.customer.email,
+                products: orderData.products,
+                total: orderData.total,
+                paymentMethod: paymentData.payment.method,
+                ebookDownloadToken: result.ebookDownloadToken || null
+            };
+            
+            // Vider le panier
+            localStorage.removeItem('lv9dreams_cart');
+            localStorage.removeItem('lv9dreams_cart_count');
+            this.cartItems = [];
+            this.cartItemsCount = 0;
+            
+            // ✨ NOUVEAU : Afficher le modal de confirmation au lieu de rediriger
+            setTimeout(() => {
+                this.showOrderConfirmation(confirmationData);
+            }, 1000);
+            
+        } else {
+            throw new Error(result.message || 'Erreur lors de l\'enregistrement');
+        }
+        
+    } catch (error) {
+        console.error('❌ Erreur saveOrderToServer:', error);
+        throw error;
+    }
+},
 
 // Méthode pour confirmer le paiement
 async confirmPayPalPayment() {
@@ -1009,59 +1152,6 @@ async checkPayPalStatus(orderId) {
             }
         },
 
-        // === MÉTHODE AMÉLIORÉE: SAUVEGARDE COMMANDE ===
-        async saveOrderToServer(paymentData, orderOverride = null) {
-            try {
-                const orderData = {
-                    customer: orderOverride ? orderOverride.customer : { ...this.orderForm },
-                    products: orderOverride ? orderOverride.products : this.cartItems.map(item => ({
-                        type: item.type,
-                        name: item.name,
-                        price: item.price,
-                        oldPrice: item.oldPrice,
-                        quantity: item.quantity
-                    })),
-                    payment: paymentData.payment,
-                    subtotal: orderOverride ? orderOverride.total : this.getCartTotal(),
-                    shipping: 0,
-                    total: orderOverride ? orderOverride.total : this.getCartTotal(),
-                    orderDate: new Date().toISOString()
-                };
-                
-                console.log('💾 Sauvegarde commande sur le serveur...');
-                
-                // Envoyer au serveur
-                const response = await fetch('/api/order', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(orderData)
-                });
-                
-                const result = await response.json();
-                
-                if (result.success) {
-                    this.orderSuccess = true;
-                    console.log('✅ Commande enregistrée avec succès !');
-                    console.log('📦 ID Commande:', result.orderId);
-                    
-                    // Vider le panier
-                    localStorage.removeItem('lv9dreams_cart');
-                    localStorage.removeItem('lv9dreams_cart_count');
-                    
-                    // Redirection après succès
-                    setTimeout(() => {
-                        this.redirectToThankYou(result.orderId);
-                    }, 2000);
-                    
-                } else {
-                    throw new Error(result.message || 'Erreur lors de l\'enregistrement');
-                }
-                
-            } catch (error) {
-                console.error('❌ Erreur saveOrderToServer:', error);
-                throw error;
-            }
-        },
 
         
 
@@ -1161,6 +1251,22 @@ async checkPayPalStatus(orderId) {
         // Total formaté
             formattedTotal: function() {
                 return this.getCartTotal();
+            },
+
+            hasEbookInOrder: function() {
+                return this.confirmationData.products.some(product => 
+                    product.productType === 'digital' || 
+                    product.type === 'ebook' || 
+                    product.name.toLowerCase().includes('ebook')
+                );
+            },
+
+            hasPhysicalProducts: function() {
+                return this.confirmationData.products.some(product => 
+                    product.productType !== 'digital' && 
+                    product.type !== 'ebook' && 
+                    !product.name.toLowerCase().includes('ebook')
+                );
             },
 
             // Économies totales

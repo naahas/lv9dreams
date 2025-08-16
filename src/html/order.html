@@ -467,6 +467,174 @@
             <span class="theme-icon">🌙</span>
         </button>
 
+
+        <!-- Overlay -->
+        <div class="order-confirmation-overlay" :class="{ 'show': showConfirmationModal }" @click="closeConfirmationModal"></div>
+
+        <!-- Modal -->
+        <div class="order-confirmation-modal" :class="{ 'show': showConfirmationModal }">
+            
+            <!-- Header avec succès -->
+            <div class="confirmation-header">
+                <button class="confirmation-close" @click="closeConfirmationModal">×</button>
+                <div class="success-icon">✅</div>
+                <h2 class="confirmation-title">Commande Confirmée !</h2>
+                <p class="confirmation-subtitle">Merci pour votre confiance</p>
+            </div>
+
+            <!-- Contenu scrollable -->
+            <div class="confirmation-content">
+                
+                <!-- Informations de commande -->
+                <div class="order-info-section">
+                    <div class="order-info-header">
+                        <span class="section-icon">📋</span>
+                        <h3 class="section-title">Détails de votre commande</h3>
+                    </div>
+                    
+                    <div class="order-details">
+                        <div class="detail-item">
+                            <span class="detail-label">N° de commande</span>
+                            <span class="detail-value order-id-highlight">{{ confirmationData.orderId }}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Date</span>
+                            <span class="detail-value">{{ formatDate(new Date()) }}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Mode de paiement</span>
+                            <span class="detail-value">{{ getPaymentMethodDisplay(confirmationData.paymentMethod) }}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Montant total</span>
+                            <span class="detail-value">{{ confirmationData.total }}€</span>
+                        </div>
+                    </div>
+                    
+                    <div class="detail-item" style="margin-top: 1rem;">
+                        <span class="detail-label">Email de confirmation envoyé à</span>
+                        <span class="detail-value">{{ confirmationData.customerEmail }}</span>
+                    </div>
+                </div>
+
+                <!-- Produits commandés -->
+                <div class="order-info-section">
+                    <div class="order-info-header">
+                        <span class="section-icon">📦</span>
+                        <h3 class="section-title">Produits commandés</h3>
+                    </div>
+                    
+                    <div class="products-list">
+                        <div v-for="item in confirmationData.products" :key="item.type" class="product-item-confirmation">
+                            <div class="product-image-confirmation">
+                                <img :src="item.image" :alt="item.name">
+                            </div>
+                            <div class="product-info-confirmation">
+                                <div class="product-name-confirmation">{{ item.name }}</div>
+                                <div class="product-details-confirmation">
+                                    Quantité: {{ item.quantity }} 
+                                    <span v-if="item.productType === 'digital'"> • 📚 Produit numérique</span>
+                                </div>
+                            </div>
+                            <div class="product-price-confirmation">
+                                {{ (item.price * item.quantity).toFixed(2) }}€
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section eBook si applicable -->
+                <div v-if="hasEbookInOrder" class="ebook-download-section">
+                    <div class="order-info-header">
+                        <span class="section-icon">📚</span>
+                        <h3 class="section-title">Votre eBook est prêt !</h3>
+                    </div>
+                    
+                    <p class="ebook-notice">
+                        Votre guide <strong>"LV9 Code - Guide Ultime du Succès"</strong> est maintenant disponible au téléchargement. 
+                        Un lien de téléchargement a également été envoyé par email.
+                    </p>
+                    
+                    <!-- <button class="ebook-download-btn" @click="downloadEbook">
+                        <span>📥</span>
+                        <span>Télécharger l'eBook maintenant</span>
+                        <span>→</span>
+                    </button> -->
+                </div>
+
+                <!-- Informations de livraison -->
+                <div v-if="hasPhysicalProducts" class="order-info-section">
+                    <div class="order-info-header">
+                        <span class="section-icon">🚚</span>
+                        <h3 class="section-title">Informations de livraison</h3>
+                    </div>
+                    
+                    <div class="delivery-info">
+                        <div class="detail-item">
+                            <span class="detail-label">Destinataire</span>
+                            <span class="detail-value">{{ confirmationData.customerName }}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Frais de livraison</span>
+                            <span class="detail-value" style="color: #28a745;">Gratuits</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Délai estimé</span>
+                            <span class="detail-value">3-5 jours ouvrés</span>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 1rem;">
+                        <div class="detail-label" style="margin-bottom: 0.5rem;">Adresse de livraison :</div>
+                        <div class="address-display">
+                            {{ confirmationData.deliveryAddress.address }}<br>
+                            {{ confirmationData.deliveryAddress.postalCode }} {{ confirmationData.deliveryAddress.city }}<br>
+                            {{ confirmationData.deliveryAddress.country }}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contact et support -->
+                <div class="support-section">
+                    <div class="order-info-header">
+                        <span class="section-icon">💬</span>
+                        <h3 class="section-title">Besoin d'aide ?</h3>
+                    </div>
+                    
+                    <p class="support-notice">
+                        Notre équipe <strong>LV9Dreams</strong> est à votre disposition pour toute question concernant votre commande.
+                    </p>
+                    
+                    <div class="contact-methods">
+                        <div class="contact-method">
+                            <div class="contact-method-icon">📧</div>
+                            <div class="contact-method-label">Email</div>
+                            <div class="contact-method-value">lv9Dreams@gmail.com</div>
+                        </div>
+                        <div class="contact-method">
+                            <div class="contact-method-icon">📞</div>
+                            <div class="contact-method-label">Téléphone</div>
+                            <div class="contact-method-value">07 67 60 67 35</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Footer du modal -->
+            <div class="confirmation-footer">
+                <p class="footer-message">
+                    Votre commande est maintenant en cours de traitement. 
+                    Vous recevrez un email de <strong>suivi de livraison</strong> dans les prochaines heures.
+                </p>
+                
+                <button class="btn-return-home" @click="returnToHome">
+                    🏠 Retour à l'accueil
+                </button>
+            </div>
+
+        </div>
+
     </div>
 
     <script src="./order.js"></script>
