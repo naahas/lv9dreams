@@ -10,6 +10,11 @@ var app = new Vue({
                 isMenuOpen: false,
                 selectedProduct: null,
                 activeFaq: null,
+
+                // NOUVELLES VARIABLES PARTENAIRES
+                isPartenairesOpen: false,
+                currentSlide: 0,
+                partenaireImages: ['gs1.jpg', 'gs2.jpg', 'gs3.jpg', 'gs4.jpg', 'gs5.jpg'],
                 
                 products: {
                     resine: {
@@ -89,9 +94,38 @@ var app = new Vue({
                 setTimeout(() => {
                     window.location.reload();
                 }, 100);
+            },
 
-
+            togglePartenairesPopup: function() {
+                this.isPartenairesOpen = !this.isPartenairesOpen;
+                
+                if (this.isPartenairesOpen) {
+                    document.body.style.overflow = 'hidden';
+                    this.currentSlide = 0; // Reset au premier slide
+                } else {
+                    document.body.style.overflow = '';
+                }
+            },
             
+            closePartenaires: function() {
+                this.isPartenairesOpen = false;
+                document.body.style.overflow = '';
+            },
+            
+            nextSlide: function() {
+                if (this.currentSlide < this.partenaireImages.length - 1) {
+                    this.currentSlide++;
+                }
+            },
+            
+            prevSlide: function() {
+                if (this.currentSlide > 0) {
+                    this.currentSlide--;
+                }
+            },
+            
+            goToSlide: function(index) {
+                this.currentSlide = index;
             },
 
 

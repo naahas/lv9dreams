@@ -1326,6 +1326,36 @@ app.post('/api/admin/verify-password', (req, res) => {
     }
 });
 
+app.delete('/api/admin/orders/:orderId', validateAdminKey, async function(req, res) {
+    try {
+        const { orderId } = req.params;
+        
+        console.log(`🗑️ Demande suppression commande: ${orderId}`);
+        
+        // Importer la fonction depuis dbs.js
+        const { deleteOrder } = require('./dbs');
+        
+        // Supprimer la commande
+        const result = await deleteOrder(orderId);
+        
+        res.json({
+            success: true,
+            message: `Commande ${orderId} supprimée avec succès`,
+            deletedOrder: result.deletedOrder
+        });
+        
+        console.log(`✅ Commande ${orderId} supprimée par admin`);
+        
+    } catch (error) {
+        console.error('❌ Erreur suppression commande:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: error.message || 'Erreur lors de la suppression',
+            errorCode: 'DELETE_ORDER_FAILED'
+        });
+    }
+});
+
 
 app.post('/api/order', async (req, res) => {
     try {

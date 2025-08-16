@@ -477,12 +477,54 @@ async function cleanOldSessions(daysOld = 30) {
     }
 }
 
+
+async function deleteOrder(orderId) {
+    try {
+        console.log(`🗑️ [Supabase] Suppression commande: ${orderId}`);
+        
+        // 1. Supprimer d'abord les items de la commande (clés étrangères)
+        const { error: itemsError } = await supabase
+            .from('order_items')
+            .delete()
+            .eq('order_id', orderId);
+
+        if (itemsError) {
+            console.error('❌ [Supabase] Erreur suppression items:', itemsError);
+            throw itemsError;
+        }
+
+        // 2. Puis supprimer la commande principale
+        const { error: orderError, data } = await supabase
+            .from('orders')
+            .delete()
+            .eq('order_id', orderId)
+            .select();
+
+        if (orderError) {
+            console.error('❌ [Supabase] Erreur suppression commande:', orderError);
+            throw orderError;
+        }
+
+        if (!data || data.length === 0) {
+            throw new Error('Commande non trouvée');
+        }
+
+        console.log(`✅ [Supabase] Commande ${orderId} supprimée avec succès`);
+        return { success: true, deletedOrder: data[0] };
+
+    } catch (error) {
+        console.error('❌ [Supabase] Erreur suppression commande:', error.message);
+        throw error;
+    }
+}
+
 module.exports = {
     saveOrder,
     getStats,
     getRecentOrders,
     clearAllOrders,
     recordVisit,
+    deleteOrder,
     getVisitorStats,
     cleanOldSessions,
     supabase 

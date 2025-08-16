@@ -6,6 +6,8 @@
     <title>LV9Dreams</title>
 
     <link rel="stylesheet" href="./home.css">
+    <link rel="icon" type="image/png" sizes="50x50" href="fulllogoicon.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="fulllogoicon.png">
 
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/particles.js/2.0.0/particles.min.js"></script>
@@ -17,11 +19,15 @@
         <!-- Navigation -->
         <nav class="navbar">
             <div class="nav-container">
-                <div class="logo" @click="goHome">LV9Dreams</div>
+                <div class="logo" @click="goHome">
+                    <img src="logo.png" alt="LV9Dreams" class="logo-image">
+                    Dreams
+                </div>
                 <ul class="nav-links">
                     <li><a href="#accueil">Accueil</a></li>
                     <li><a href="#produits">Produits</a></li>
                     <li><a href="#ebook">eBook</a></li>
+                    <!-- <li><a href="#" @click.prevent="togglePartenairesPopup">Partenaires</a></li> -->
                 </ul>
                 <!-- NOUVEAU : Icône panier remplace le toggle thème -->
                 <button class="cart-toggle" @click="toggleCart" :class="{ 'clicked': cartClicked }">
@@ -329,6 +335,72 @@
                 </div>
             </div>
         </div>
+
+        <div class="partenaires-overlay" :class="{ 'show': isPartenairesOpen }" @click="closePartenaires"></div>
+
+        <div class="partenaires-popup" :class="{ 'show': isPartenairesOpen }">
+        <!-- Header -->
+        <div class="partenaires-header">
+            <div class="partenaires-title">
+                <span class="title-icon">🤝</span>
+                <h2>Nos Partenaires</h2>
+            </div>
+            <button class="partenaires-close" @click="closePartenaires">×</button>
+        </div>
+
+        <!-- Content -->
+        <div class="partenaires-content">
+            <!-- Description -->
+            <div class="partenaires-description">
+                <p>Découvrez <strong>@location-gs</strong>, notre partenaire spécialisé dans la location de prestige.</p>
+                <p>Excellence et qualité sont nos valeurs communes.</p>
+            </div>
+
+            <!-- Carousel -->
+            <div class="carousel-container">
+                <div class="carousel-wrapper">
+                    <div class="carousel-track" :style="{ transform: `translateX(-${currentSlide * 100}%)` }">
+                        <div class="carousel-slide" v-for="(image, index) in partenaireImages" :key="index">
+                            <div class="image-container">
+                                <img :src="`${image}`" :alt="`Mercedes ${index + 1}`" />
+                                <div class="image-overlay"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Navigation -->
+                <button class="carousel-btn carousel-prev" @click="prevSlide" :disabled="currentSlide === 0">
+                    <span>‹</span>
+                </button>
+                <button class="carousel-btn carousel-next" @click="nextSlide" :disabled="currentSlide === partenaireImages.length - 1">
+                    <span>›</span>
+                </button>
+
+                <!-- Dots -->
+                <div class="carousel-dots">
+                    <button 
+                        v-for="(image, index) in partenaireImages" 
+                        :key="index"
+                        class="dot" 
+                        :class="{ 'active': currentSlide === index }"
+                        @click="goToSlide(index)"
+                    ></button>
+                </div>
+            </div>
+
+            <!-- Call to Action -->
+            <div class="partenaires-cta">
+                <div class="cta-text">
+                    <span class="cta-label">Suivez-les sur Snapchat</span>
+                    <a href="https://snapchat.com/add/location-gs" target="_blank" class="snapchat-link">
+                        <span class="snap-icon">👻</span>
+                        @location-gs
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
 
     </div>
 

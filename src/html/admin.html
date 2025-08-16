@@ -19,7 +19,10 @@
         <!-- Loading Screen -->
         <div id="admin-loading" class="admin-loading">
             <div class="loading-content">
-                <div class="loading-logo">LV9Dreams</div>
+                <div class="logo" @click="goHome">
+                    <img src="logo.png" alt="LV9Dreams" class="logo-image">
+                    Dreams
+                </div>
                 <div class="loading-text">Vérification des accès...</div>
                 <div class="loading-spinner"></div>
             </div>
@@ -154,6 +157,7 @@
                             <div class="order-total">Total</div>
                             <div class="order-status">Statut</div>
                             <div class="order-date">Date</div>
+                            <div class="order-actions">Actions</div> <!-- NOUVELLE COLONNE -->
                         </div>
                         
                         <div v-for="order in recentOrders" :key="order.id" class="order-row">
@@ -172,16 +176,22 @@
                                 <span class="status-badge" :class="order.status">{{ getStatusText(order.status) }}</span>
                             </div>
                             <div class="order-date">{{ formatDate(order.date) }}</div>
+                            <div class="order-actions">
+                                <!-- NOUVEAU : Bouton supprimer pour chaque commande -->
+                                <button class="btn-delete-order" @click="deleteIndividualOrder(order.id)" :title="`Supprimer la commande ${order.id}`">
+                                    🗑️
+                                </button>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Pagination -->
-                    <div class="orders-pagination" v-if="totalPages > 1">
-                        <button class="page-btn" @click="previousPage" :disabled="currentPage === 1">←</button>
-                        <span class="page-info">{{ currentPage }} / {{ totalPages }}</span>
-                        <button class="page-btn" @click="nextPage" :disabled="currentPage === totalPages">→</button>
-                    </div>
-                </div>
+        <!-- Pagination (inchangée) -->
+        <div class="orders-pagination" v-if="totalPages > 1">
+            <button class="page-btn" @click="previousPage" :disabled="currentPage === 1">←</button>
+            <span class="page-info">{{ currentPage }} / {{ totalPages }}</span>
+            <button class="page-btn" @click="nextPage" :disabled="currentPage === totalPages">→</button>
+        </div>
+    </div>
 
                 <!-- Quick Actions -->
                 <div class="admin-actions">

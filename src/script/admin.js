@@ -738,6 +738,65 @@ cleanOldSessions: function() {
     });
 },
 
+deleteIndividualOrder: function(orderId) {
+    // Confirmation de suppression
+    const confirmation = confirm(
+        `🗑️ Supprimer la commande ${orderId} ?\n\n` +
+        'Cette action est définitive et ne peut pas être annulée.\n\n' +
+        'Confirmez-vous la suppression ?'
+    );
+    
+    if (!confirmation) return;
+    
+    console.log(`🗑️ Suppression de la commande: ${orderId}`);
+    
+    // Désactiver le bouton pendant la suppression
+    const deleteBtn = event.target;
+    const originalContent = deleteBtn.innerHTML;
+    deleteBtn.innerHTML = '⏳';
+    deleteBtn.disabled = true;
+    
+    fetch(`/api/admin/orders/${orderId}`, {
+        method: 'DELETE',
+        headers: {
+            'x-admin-key': sessionStorage.getItem('lv9_admin_key'),
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Succès - Retirer la commande de la liste
+            this.recentOrders = this.recentOrders.filter(order => order.id !== orderId);
+            
+            // Afficher confirmation
+            alert(`✅ Commande ${orderId} supprimée avec succès !`);
+            
+            // Recharger les statistiques pour qu'elles soient à jour
+            this.loadStats();
+            
+            console.log(`✅ Commande ${orderId} supprimée et retirée de la liste`);
+            
+            // Si plus de commandes sur cette page, recharger
+            if (this.recentOrders.length === 0 && this.currentPage > 1) {
+                this.loadOrdersPage(this.currentPage - 1);
+            }
+        } else {
+            alert('❌ Erreur: ' + data.message);
+            console.error('❌ Erreur suppression:', data.message);
+        }
+    })
+    .catch(error => {
+        console.error('❌ Erreur suppression commande:', error);
+        alert('❌ Erreur de connexion lors de la suppression');
+    })
+    .finally(() => {
+        // Restaurer le bouton
+        deleteBtn.innerHTML = originalContent;
+        deleteBtn.disabled = false;
+    });
+},
+
 
         viewCustomers: function() {
             this.showCustomersModal();
