@@ -386,6 +386,10 @@ var adminApp = new Vue({
             return statusMap[status] || status;
         },
 
+        refreshPage: function () {
+            location.reload();
+        },
+
         // === ACTIONS ===
         refreshData: function() {
     console.log('🔄 Actualisation des données admin...');
