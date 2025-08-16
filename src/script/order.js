@@ -178,26 +178,18 @@ mountStripeElements() {
     try {
         console.log('🔄 Montage des éléments Stripe...');
         
-        // Vérifier que les conteneurs existent ET sont visibles
         const containers = {
             number: document.getElementById('stripe-card-number'),
             expiry: document.getElementById('stripe-card-expiry'),
             cvc: document.getElementById('stripe-card-cvc')
         };
         
-        // Vérifier la visibilité des conteneurs
         const stripeForm = document.querySelector('.stripe-payment-form');
         if (!stripeForm || getComputedStyle(stripeForm).display === 'none') {
             console.log('⏳ Formulaire Stripe pas visible, réessai...');
             setTimeout(() => this.mountStripeElements(), 1000);
             return;
         }
-        
-        console.log('Conteneurs trouvés:', {
-            number: !!containers.number && containers.number.offsetParent !== null,
-            expiry: !!containers.expiry && containers.expiry.offsetParent !== null,
-            cvc: !!containers.cvc && containers.cvc.offsetParent !== null
-        });
         
         if (!containers.number || !containers.expiry || !containers.cvc) {
             throw new Error('Conteneurs Stripe non trouvés');
@@ -215,14 +207,19 @@ mountStripeElements() {
         
         console.log('✅ Éléments Stripe montés avec succès');
         
-        // Configurer la gestion d'erreurs
+        // Configurer la gestion d'erreurs ET l'auto-focus
         this.setupStripeErrorHandling();
+        
+        // 🚀 AUTO-FOCUS INITIAL : Focus sur le premier champ après montage
+        setTimeout(() => {
+            this.cardNumberElement.focus();
+            console.log('🎯 Focus initial sur numéro de carte');
+        }, 800);
         
     } catch (error) {
         console.error('❌ Erreur montage Stripe:', error);
         this.orderError = 'Erreur lors du montage des champs de carte';
         
-        // Réessayer après un délai plus long
         setTimeout(() => {
             if (this.orderForm.paymentMethod === 'stripe') {
                 console.log('🔄 Nouvelle tentative de montage...');
@@ -233,84 +230,121 @@ mountStripeElements() {
 },
 
 
-         setupStripeErrorHandling() {
-            // Erreurs numéro de carte
-            this.cardNumberElement.on('change', ({ error }) => {
-                const errorElement = document.getElementById('stripe-card-number-error');
-                if (errorElement) {
-                    errorElement.textContent = error ? this.translateStripeError(error.message) : '';
-                }
-            });
-            
-            // Erreurs date d'expiration
-            this.cardExpiryElement.on('change', ({ error }) => {
-                const errorElement = document.getElementById('stripe-card-expiry-error');
-                if (errorElement) {
-                    errorElement.textContent = error ? this.translateStripeError(error.message) : '';
-                }
-            });
-            
-            // Erreurs CVC
-            this.cardCvcElement.on('change', ({ error }) => {
-                const errorElement = document.getElementById('stripe-card-cvc-error');
-                if (errorElement) {
-                    errorElement.textContent = error ? this.translateStripeError(error.message) : '';
-                }
-            });
-            
-            console.log('✅ Gestion d\'erreurs Stripe configurée');
-
-             setTimeout(() => {
-        console.log('🧪 DEBUG STRIPE FIELDS:');
-        
-        // Vérifier les iframes Stripe
-        const stripeFrames = document.querySelectorAll('iframe[name^="__privateStripeFrame"]');
-        console.log('📱 Iframes Stripe trouvées:', stripeFrames.length);
-        
-        stripeFrames.forEach((frame, index) => {
-            console.log(`Frame ${index}:`, {
-                name: frame.name,
-                src: frame.src,
-                style: frame.style.cssText,
-                clientWidth: frame.clientWidth,
-                clientHeight: frame.clientHeight
-            });
-        });
-        
-        // Vérifier les conteneurs
-        const containers = [
-            'stripe-card-number',
-            'stripe-card-expiry', 
-            'stripe-card-cvc'
-        ];
-        
-        containers.forEach(id => {
-            const container = document.getElementById(id);
-            if (container) {
-                console.log(`📦 Container ${id}:`, {
-                    exists: true,
-                    visible: container.offsetParent !== null,
-                    width: container.offsetWidth,
-                    height: container.offsetHeight,
-                    children: container.children.length,
-                    innerHTML: container.innerHTML.length > 0 ? 'Has content' : 'Empty'
-                });
-            }
-        });
-        
-        // Tester l'interactivité
-        console.log('🎯 Test focus sur le champ numéro...');
-        const numberContainer = document.getElementById('stripe-card-number');
-        if (numberContainer) {
-            const iframe = numberContainer.querySelector('iframe');
-            if (iframe) {
-                iframe.focus();
-                console.log('✅ Focus appliqué sur iframe');
-            }
+        setupStripeErrorHandling() {
+    // Variables pour suivre l'état des champs
+    let cardNumberComplete = false;
+    let cardExpiryComplete = false;
+    let cardCvcComplete = false;
+    
+    // 🎯 NOUVEAU : Gestion du numéro de carte avec auto-focus
+    this.cardNumberElement.on('change', ({ error, complete }) => {
+        const errorElement = document.getElementById('stripe-card-number-error');
+        if (errorElement) {
+            errorElement.textContent = error ? this.translateStripeError(error.message) : '';
         }
         
-    }, 3000); 
-        },
+        // 🚀 AUTO-FOCUS : Passer au champ suivant si complet
+        cardNumberComplete = complete;
+        if (complete && !error) {
+            console.log('✅ Numéro de carte complet → Focus sur date d\'expiration');
+            this.cardExpiryElement.focus();
+        }
+    });
+    
+    // 🎯 NOUVEAU : Gestion de la date d'expiration avec auto-focus
+    this.cardExpiryElement.on('change', ({ error, complete }) => {
+        const errorElement = document.getElementById('stripe-card-expiry-error');
+        if (errorElement) {
+            errorElement.textContent = error ? this.translateStripeError(error.message) : '';
+        }
+        
+        // 🚀 AUTO-FOCUS : Passer au champ suivant si complet
+        cardExpiryComplete = complete;
+        if (complete && !error) {
+            console.log('✅ Date d\'expiration complète → Focus sur CVC');
+            this.cardCvcElement.focus();
+        }
+    });
+    
+    // 🎯 NOUVEAU : Gestion du CVC avec indication finale
+    this.cardCvcElement.on('change', ({ error, complete }) => {
+        const errorElement = document.getElementById('stripe-card-cvc-error');
+        if (errorElement) {
+            errorElement.textContent = error ? this.translateStripeError(error.message) : '';
+        }
+        
+        // 🚀 FINALISATION : Tous les champs sont remplis
+        cardCvcComplete = complete;
+        if (complete && !error) {
+            console.log('✅ CVC complet → Formulaire de paiement prêt !');
+            const orderButton = document.querySelector('.order-button');
+            if (orderButton) {
+                orderButton.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+    });
+    
+    // 🎯 NOUVEAU : Gestion des touches pour navigation manuelle
+    this.setupKeyboardNavigation();
+    
+    console.log('✅ Gestion d\'erreurs Stripe + Auto-focus configurés');
+},
+
+
+// 🆕 NOUVELLE MÉTHODE : Navigation clavier entre champs
+setupKeyboardNavigation() {
+    // Écouter les événements clavier sur les champs Stripe
+    document.addEventListener('keydown', (e) => {
+        // Vérifier si on est dans un champ Stripe
+        const activeElement = document.activeElement;
+        if (!activeElement || !activeElement.closest('.stripe-field')) {
+            return;
+        }
+        
+        // BACKSPACE : Retour au champ précédent si vide
+        if (e.key === 'Backspace') {
+            this.handleBackspaceNavigation(activeElement);
+        }
+        
+        // TAB : Navigation naturelle (laisser le comportement par défaut)
+        if (e.key === 'Tab') {
+            // Le navigateur gère déjà Tab naturellement
+            return;
+        }
+    });
+},
+
+// 🆕 NOUVELLE MÉTHODE : Gestion du backspace pour retour automatique
+handleBackspaceNavigation(activeElement) {
+    // Identifier le champ actuel
+    const currentField = activeElement.closest('.stripe-field');
+    if (!currentField) return;
+    
+    const fieldId = currentField.id;
+    
+    // Si le champ est vide et on appuie sur Backspace
+    setTimeout(() => {
+        if (fieldId === 'stripe-card-expiry') {
+            // Depuis date → retour numéro de carte si vide
+            this.cardExpiryElement.on('change', ({ empty }) => {
+                if (empty) {
+                    console.log('⬅️ Retour automatique vers numéro de carte');
+                    this.cardNumberElement.focus();
+                }
+            });
+        } else if (fieldId === 'stripe-card-cvc') {
+            // Depuis CVC → retour date si vide
+            this.cardCvcElement.on('change', ({ empty }) => {
+                if (empty) {
+                    console.log('⬅️ Retour automatique vers date d\'expiration');
+                    this.cardExpiryElement.focus();
+                }
+            });
+        }
+    }, 100);
+},
+
+
 
         // Méthode pour traduire les erreurs Stripe en français
         translateStripeError(errorMessage) {
@@ -343,12 +377,24 @@ mountStripeElements() {
                 } else if (!this.cardNumberElement || !this.cardNumberElement._mounted) {
                     console.log('🔄 Éléments Stripe non montés, remontage...');
                     this.createStripeElements();
-                    setTimeout(() => this.mountStripeElements(), 500);
+                    setTimeout(() => {
+                        this.mountStripeElements();
+                        // 🚀 AUTO-FOCUS : Focus automatique sur le premier champ
+                        setTimeout(() => {
+                            this.cardNumberElement.focus();
+                            console.log('🎯 Auto-focus sur le numéro de carte');
+                        }, 500);
+                    }, 500);
                 } else {
                     console.log('🔄 Remontage éléments Stripe existants...');
                     this.remountStripeElements();
+                    // 🚀 AUTO-FOCUS : Focus automatique sur le premier champ
+                    setTimeout(() => {
+                        this.cardNumberElement.focus();
+                        console.log('🎯 Auto-focus sur le numéro de carte');
+                    }, 700);
                 }
-            }, 500); // Délai plus long
+            }, 500);
         });
     }
 },
